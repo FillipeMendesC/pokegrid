@@ -48,14 +48,17 @@ The renderer receives no Node.js or filesystem API. `BrowserWindow` uses:
 
 Unexpected navigation is blocked. Normal external `http` and `https` links are handed to the operating system browser instead of being opened inside the renderer.
 
-No preload bridge is necessary because the UI communicates only with the local HTTP API.
+A minimal sandboxed preload bridge exposes only desktop metadata and updater actions. It does not expose Node.js, the filesystem or arbitrary IPC to the renderer.
 
 ## Frontend
 
 The frontend is a hash-routed single-page application. It owns durable browser state for:
 
 - Team Lab members;
-- comparison selections.
+- saved teams and selected moves;
+- favorites;
+- comparison selections;
+- language and sound preferences.
 
 Those selections use `localStorage`, which Electron stores inside the application's user-data directory in packaged builds.
 
@@ -67,8 +70,13 @@ Application endpoints:
 
 - `GET /api/pokemon?limit=&offset=` — paginated field index
 - `GET /api/pokemon/:idOrName` — complete specimen sheet
-- `GET /api/search?q=` — name/id search
+- `GET /api/search?q=` — name/id/form search
+- `GET /api/filter?type=&generation=` — filtered specimen index
+- `GET /api/generations` — generation metadata
+- `GET /api/generation/:id` — generation species index
+- `GET /api/move/:name` — normalized move data
 - `POST /api/team/analyze` — team resolution and composition analysis
+- `POST /api/team/moves` — selected-move coverage analysis
 - `GET /api/health` — process and cache telemetry
 
 ## Cache model
@@ -116,7 +124,9 @@ The composition index is deliberately presented as a project heuristic. The pres
 - Windows portable executable;
 - Linux AppImage.
 
-GitHub Actions uses native Windows and Linux runners. A regular push validates and builds artifacts; a version tag (`v*`) creates a GitHub Release and attaches the packaged applications.
+GitHub Actions uses native Windows and Linux runners. A regular push validates and builds artifacts; a version tag (`v*`) creates a GitHub Release and attaches the packaged applications plus update metadata.
+
+The installed Windows build uses `electron-updater` with the GitHub Releases provider. Windows NSIS builds can download a new version and install it on app exit. Portable Windows builds are treated separately: they check the latest release but remain manually replaceable because Portable is not an auto-updatable Windows target.
 
 ## Failure behavior
 
