@@ -1,0 +1,60 @@
+name: Bootstrap frontend assets
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.frontend-bootstrap/**'
+      - '.github/workflows/bootstrap-frontend.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore application interface
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .frontend-bootstrap/part*.b64 > /tmp/frontend.b64
+          base64 --decode /tmp/frontend.b64 > /tmp/frontend.zip
+          unzip -o /tmp/frontend.zip -d .
+
+      - name: Generate desktop icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick librsvg2-bin
+          mkdir -p assets
+          convert -background none public/mark.svg -resize 512x512 assets/icon.png
+          convert -background none public/mark.svg \
+            \( -clone 0 -resize 16x16 \) \
+            \( -clone 0 -resize 24x24 \) \
+            \( -clone 0 -resize 32x32 \) \
+            \( -clone 0 -resize 48x48 \) \
+            \( -clone 0 -resize 64x64 \) \
+            \( -clone 0 -resize 128x128 \) \
+            \( -clone 0 -resize 256x256 \) \
+            -delete 0 assets/icon.ico
+
+      - name: Commit restored files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js public/styles.css assets/icon.png assets/icon.ico
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git commit -m "feat: add complete interface and desktop assets"
+          git push origin HEAD:main
