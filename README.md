@@ -163,7 +163,7 @@ pokegrid/
 ├── assets/
 ├── desktop/
 │   ├── main.mjs
-│   └── preload.mjs
+│   └── preload.cjs
 ├── docs/
 ├── public/
 ├── src/
