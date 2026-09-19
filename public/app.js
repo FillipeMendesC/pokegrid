@@ -367,6 +367,7 @@ const state = {
   filter: { type: "", generation: "", offset: 0, active: false },
   generations: [],
   soundEnabled: localStorage.getItem("pokegrid:sound") !== "off",
+  updateUnsubscribe: null,
   searchTimer: null,
   locale: readLocale()
 };
@@ -417,6 +418,7 @@ function playUiSound(kind = "tap") {
     if (!AudioContext) return;
     playUiSound.context ??= new AudioContext();
     const ctx = playUiSound.context;
+    if (ctx.state === "suspended") void ctx.resume();
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     const now = ctx.currentTime;
@@ -601,6 +603,7 @@ function bindSpecimens(root = app) {
     if (pokemon) {
       toggleFavorite(pokemon);
       button.textContent = isFavorite(pokemon.name) ? "★" : "☆";
+      if ((location.hash.slice(1) || "/") === "/favorites") renderFavorites().catch(renderError);
     }
   }));
   root.querySelectorAll("[data-add-compare]").forEach((button) => button.addEventListener("click", (event) => {
@@ -1312,7 +1315,8 @@ async function renderAbout() {
   }
 
   if (desktop && window.pokegrid?.onUpdateStatus) {
-    window.pokegrid.onUpdateStatus((status) => {
+    state.updateUnsubscribe?.();
+    state.updateUnsubscribe = window.pokegrid.onUpdateStatus((status) => {
       const target = app.querySelector("#update-status");
       if (target) target.textContent = status.message ?? status.state ?? "Update status changed.";
     });
