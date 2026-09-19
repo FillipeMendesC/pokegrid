@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#efede5" />
+  <meta name="description" content="POKÉGRID — a Pokémon field research system for exploration, comparison and team analysis." />
+  <meta property="og:title" content="POKÉGRID — Field Research System" />
+  <meta property="og:description" content="Explore Pokémon as data. Build teams. Read weaknesses, coverage and balance." />
+  <meta property="og:type" content="website" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/mark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css" />
+  <title>POKÉGRID — Field Research System</title>
+</head>
+<body>
+  <div class="scanline" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="wordmark" href="#/" aria-label="POKÉGRID home">
+      <span class="mark">PG</span>
+      <span>POKÉGRID</span>
+    </a>
+
+    <nav class="nav" aria-label="Primary navigation">
+      <a href="#/" data-nav="explore">Index</a>
+      <a href="#/team" data-nav="team">Team Lab <span id="team-count" class="nav-count">0</span></a>
+      <a href="#/compare" data-nav="compare">Compare <span id="compare-count" class="nav-count">0</span></a>
+    </nav>
+
+    <button class="search-trigger" id="search-trigger" type="button" aria-label="Open search">
+      <span>Search index</span><kbd>/</kbd>
+    </button>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <footer class="footer">
+    <span>POKÉGRID / FIELD RESEARCH SYSTEM</span>
+    <span>DATA: POKÉAPI</span>
+    <span>FAN PROJECT · NOT AFFILIATED WITH NINTENDO / GAME FREAK</span>
+  </footer>
+
+  <dialog class="search-dialog" id="search-dialog">
+    <form method="dialog" class="search-head">
+      <label for="global-search">SEARCH THE FULL INDEX</label>
+      <button type="submit" class="text-button">ESC / CLOSE</button>
+    </form>
+    <div class="search-input-row">
+      <span class="search-prefix">→</span>
+      <input id="global-search" autocomplete="off" spellcheck="false" placeholder="pikachu, gengar, 149…" />
+    </div>
+    <div id="search-results" class="search-results">
+      <p class="search-hint">Type a name. Results resolve against the full PokéAPI Pokémon index.</p>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
