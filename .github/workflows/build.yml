@@ -32,12 +32,18 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund
       - run: npm run dist:win
+      - name: Verify Windows update metadata
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "release/latest.yml")) { throw "latest.yml was not generated" }
       - uses: actions/upload-artifact@v4
         with:
           name: pokegrid-windows
           path: |
             release/POKEGRID-Setup-*.exe
             release/POKEGRID-Portable-*.exe
+            release/latest.yml
+            release/*.blockmap
           if-no-files-found: error
 
   linux:
@@ -50,8 +56,13 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund
       - run: npm run dist:linux
+      - name: Verify Linux update metadata
+        run: test -f release/latest-linux.yml
       - uses: actions/upload-artifact@v4
         with:
           name: pokegrid-linux
-          path: release/POKEGRID-*.AppImage
+          path: |
+            release/POKEGRID-*.AppImage
+            release/latest-linux.yml
+            release/*.blockmap
           if-no-files-found: error
