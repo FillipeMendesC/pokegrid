@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.3.1
+
+- Fixed interface audio reliability in Electron/Chromium by explicitly unlocking the Web Audio context on user input.
+- Reworked UI sounds with clearer short note patterns and a more audible gain envelope.
+- Added a TEST SOUND control to the About/System page.
+
 ## 1.3.0
 
 - Fixed Mega, Gigantamax and alternate-form detail resolution.
