@@ -1,4 +1,13 @@
-# Changelog
+# CHANGELOG
+
+## 1.2.0
+
+- Added English / Português (Brasil) interface switching with saved preference.
+- Added Matheus Camacho author credit plus GitHub and LinkedIn links in the app.
+- Added transparent AI-support disclosure.
+- Moved direct desktop downloads to the top of the README.
+- Added a Windows download shortcut to the repository archive.
+- Prepared the repository for easier binary distribution.
 
 ## 1.1.0 — Desktop release
 
