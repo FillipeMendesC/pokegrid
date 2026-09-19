@@ -11,6 +11,266 @@ const toastEl = document.querySelector("#toast");
 const teamCount = document.querySelector("#team-count");
 const compareCount = document.querySelector("#compare-count");
 
+const LANGUAGE_KEY = "pokegrid:locale";
+const sourceText = new WeakMap();
+const sourceAttributes = new WeakMap();
+
+const PT_BR = {
+  "Index": "Índice",
+  "Team Lab": "Lab de Time",
+  "Compare": "Comparar",
+  "Search index": "Buscar no índice",
+  "Primary navigation": "Navegação principal",
+  "Open search": "Abrir busca",
+  "Change language": "Mudar idioma",
+  "POKÉGRID home": "Início do POKÉGRID",
+  "POKÉGRID / FIELD RESEARCH SYSTEM": "POKÉGRID / SISTEMA DE PESQUISA DE CAMPO",
+  "DATA: POKÉAPI": "DADOS: POKÉAPI",
+  "CONCEPT, DIRECTION & PROJECT BY MATHEUS CAMACHO · AI USED AS DEVELOPMENT SUPPORT": "CONCEITO, DIREÇÃO E PROJETO POR MATHEUS CAMACHO · IA UTILIZADA COMO SUPORTE NO DESENVOLVIMENTO",
+  "FAN PROJECT · NOT AFFILIATED WITH NINTENDO / GAME FREAK": "PROJETO DE FÃ · SEM AFILIAÇÃO COM NINTENDO / GAME FREAK",
+  "SEARCH THE FULL INDEX": "BUSCAR NO ÍNDICE COMPLETO",
+  "ESC / CLOSE": "ESC / FECHAR",
+  "Type a name. Results resolve against the full PokéAPI Pokémon index.": "Digite um nome. Os resultados são buscados no índice completo de Pokémon da PokéAPI.",
+  "FIELD RESEARCH SYSTEM / REV. 01": "SISTEMA DE PESQUISA DE CAMPO / REV. 01",
+  "READ THE": "LEIA O",
+  "SIGNAL.": "SINAL.",
+  "Pokémon stripped back to structure: species data, battle stats, type pressure and team composition in one research interface.": "Pokémon reduzido à estrutura: dados de espécies, atributos de batalha, pressão de tipos e composição de time em uma única interface de pesquisa.",
+  "ACTIVE SPECIMEN": "ESPÉCIME ATIVO",
+  "TYPE PRESSURE": "PRESSÃO DE TIPO",
+  "SPECIES INDEX": "ÍNDICE DE ESPÉCIES",
+  "TEAM BALANCE": "EQUILÍBRIO DO TIME",
+  "EVOLUTION DATA": "DADOS DE EVOLUÇÃO",
+  "BATTLE PROFILE": "PERFIL DE BATALHA",
+  "FIELD NOTES": "NOTAS DE CAMPO",
+  "02 / SPECIMEN INDEX": "02 / ÍNDICE DE ESPÉCIMES",
+  "FIELD INDEX": "ÍNDICE DE CAMPO",
+  "Start anywhere. Every entry opens a full specimen sheet; use + to send a Pokémon to Team Lab, or ≠ to stage a comparison.": "Comece por qualquer lugar. Cada entrada abre uma ficha completa; use + para enviar um Pokémon ao Lab de Time ou ≠ para colocá-lo na comparação.",
+  "LIVE INDEX": "ÍNDICE AO VIVO",
+  "Load next specimens →": "Carregar próximos espécimes →",
+  "Reading next batch…": "Lendo próximo lote…",
+  "Retry loading specimens": "Tentar carregar novamente",
+  "Reading field data": "Lendo dados de campo",
+  "Opening specimen index": "Abrindo índice de espécimes",
+  "DATA LINK / ERROR": "CONEXÃO DE DADOS / ERRO",
+  "Field signal lost.": "Sinal de campo perdido.",
+  "Something went wrong.": "Algo deu errado.",
+  "Retry": "Tentar novamente",
+  "← Return to index": "← Voltar ao índice",
+  "Height": "Altura",
+  "Weight": "Peso",
+  "Base stat total": "Total de atributos base",
+  "Known moves": "Golpes conhecidos",
+  "Capture rate": "Taxa de captura",
+  "Growth": "Crescimento",
+  "Habitat": "Habitat",
+  "Class": "Classe",
+  "Mythical": "Mítico",
+  "Legendary": "Lendário",
+  "Standard": "Padrão",
+  "+ Add to Team Lab": "+ Adicionar ao Lab de Time",
+  "≠ Toggle comparison": "≠ Alternar comparação",
+  "Add to Team Lab": "Adicionar ao Lab de Time",
+  "Toggle compare": "Alternar comparação",
+  "ABILITIES": "HABILIDADES",
+  "HIDDEN ABILITY": "HABILIDADE OCULTA",
+  "ABILITY": "HABILIDADE",
+  "EVOLUTION TRACE": "TRILHA DE EVOLUÇÃO",
+  "BREEDING / FIELD": "CRIAÇÃO / CAMPO",
+  "EGG GROUPS": "GRUPOS DE OVOS",
+  "BASE HAPPINESS": "FELICIDADE BASE",
+  "No evolution chain registered.": "Nenhuma cadeia de evolução registrada.",
+  "Unknown": "Desconhecido",
+  "unknown": "desconhecido",
+  "BASE FORM": "FORMA BASE",
+  "CONDITION VARIES": "CONDIÇÃO VARIÁVEL",
+  "SPECIAL CONDITION": "CONDIÇÃO ESPECIAL",
+  "REMOVE": "REMOVER",
+  "EMPTY": "VAZIO",
+  "Running team analysis": "Executando análise do time",
+  "03 / COMPOSITION ENGINE": "03 / MOTOR DE COMPOSIÇÃO",
+  "TEAM": "TIME",
+  "LAB.": "LAB.",
+  "MAXIMUM 06 SPECIMENS": "MÁXIMO DE 06 ESPÉCIMES",
+  "Read a team as a system: shared weaknesses, resistances, immunities, native type coverage and overall stat shape.": "Leia o time como um sistema: fraquezas compartilhadas, resistências, imunidades, cobertura de tipos nativos e perfil geral de atributos.",
+  "+ Search a Pokémon to add": "+ Buscar um Pokémon para adicionar",
+  "COMPOSITION INDEX": "ÍNDICE DE COMPOSIÇÃO",
+  "/ 100 · PROJECT HEURISTIC": "/ 100 · HEURÍSTICA DO PROJETO",
+  "A compact project metric based on native type diversity, shared weaknesses and super-effective STAB coverage. It is not a competitive tier ranking.": "Uma métrica do projeto baseada em diversidade de tipos nativos, fraquezas compartilhadas e cobertura STAB super efetiva. Não é um ranking competitivo.",
+  "Add more members to reveal stronger patterns.": "Adicione mais membros para revelar padrões mais claros.",
+  "DEFENSIVE PRESSURE MATRIX": "MATRIZ DE PRESSÃO DEFENSIVA",
+  "Attack type": "Tipo atacante",
+  "Weak": "Fraco",
+  "Resist": "Resiste",
+  "Immune": "Imune",
+  "Neutral": "Neutro",
+  "04 / TEAM SHAPE": "04 / PERFIL DO TIME",
+  "AVERAGE BASE STATS": "MÉDIA DOS ATRIBUTOS BASE",
+  "Useful for reading whether the group leans toward speed, bulk or raw offensive pressure.": "Útil para entender se o grupo tende a velocidade, resistência ou pressão ofensiva bruta.",
+  "NO ACTIVE TEAM": "NENHUM TIME ATIVO",
+  "Build from the index.": "Monte a partir do índice.",
+  "Use the + control on any specimen.": "Use o controle + em qualquer espécime.",
+  "Aligning specimens": "Alinhando espécimes",
+  "05 / PARALLEL VIEW": "05 / VISÃO PARALELA",
+  "COMPARE.": "COMPARE.",
+  "UP TO 03 SPECIMENS": "ATÉ 03 ESPÉCIMES",
+  "Line up base attributes and body metrics without collapsing them into a single verdict.": "Compare atributos base e medidas corporais sem reduzi-los a um único veredito.",
+  "COMPARISON BUFFER EMPTY": "COMPARAÇÃO VAZIA",
+  "Choose your subjects.": "Escolha seus espécimes.",
+  "Use the ≠ control in the index.": "Use o controle ≠ no índice.",
+  "Specimen": "Espécime",
+  "Types": "Tipos",
+  "Base total": "Total base",
+  "Scanning index…": "Varrendo o índice…",
+  "OPEN →": "ABRIR →",
+  "404 / INDEX MISS": "404 / FORA DO ÍNDICE",
+  "Unknown coordinate.": "Coordenada desconhecida.",
+  "Return to field index →": "Voltar ao índice de campo →",
+  "Attack": "Ataque",
+  "Defense": "Defesa",
+  "Sp. Attack": "Ataque Esp.",
+  "Sp. Defense": "Defesa Esp.",
+  "Speed": "Velocidade",
+  "IMMUNITY": "IMUNIDADE",
+  "DIVERSITY": "DIVERSIDADE",
+  "COVERAGE": "COBERTURA",
+  "STACKED WEAKNESS": "FRAQUEZA ACUMULADA",
+  "TYPE CLUSTER": "CONCENTRAÇÃO DE TIPO",
+  "PRESSURE GAP": "LACUNA DE PRESSÃO",
+  "medium": "médio",
+  "slow": "lento",
+  "fast": "rápido",
+  "medium-slow": "médio-lento",
+  "medium-fast": "médio-rápido",
+  "erratic": "irregular",
+  "fluctuating": "variável",
+  "forest": "floresta",
+  "grassland": "campo",
+  "mountain": "montanha",
+  "cave": "caverna",
+  "rough-terrain": "terreno acidentado",
+  "urban": "urbano",
+  "waters-edge": "margem da água",
+  "sea": "mar",
+  "rare": "raro",
+  "level up": "subir de nível",
+  "trade": "troca",
+  "use item": "usar item"
+};
+
+const TYPE_PT_BR = {
+  normal: "normal",
+  fire: "fogo",
+  water: "água",
+  electric: "elétrico",
+  grass: "planta",
+  ice: "gelo",
+  fighting: "lutador",
+  poison: "veneno",
+  ground: "terrestre",
+  flying: "voador",
+  psychic: "psíquico",
+  bug: "inseto",
+  rock: "pedra",
+  ghost: "fantasma",
+  dragon: "dragão",
+  dark: "sombrio",
+  steel: "aço",
+  fairy: "fada"
+};
+
+function readLocale() {
+  const locale = localStorage.getItem(LANGUAGE_KEY);
+  return locale === "pt-BR" ? "pt-BR" : "en";
+}
+
+function typeLabel(type) {
+  return state.locale === "pt-BR" ? (TYPE_PT_BR[type] ?? type) : type;
+}
+
+function translateBaseText(value = "") {
+  if (state.locale !== "pt-BR") return value;
+
+  const raw = String(value);
+  const clean = raw.trim();
+  if (!clean) return raw;
+
+  let translated = PT_BR[clean] ?? TYPE_PT_BR[clean];
+
+  if (!translated) {
+    let match;
+    if ((match = clean.match(/^(\d+) API ENTRIES$/))) translated = match[1] + " ENTRADAS DA API";
+    else if ((match = clean.match(/^(\d+) DISTINCT TYPES$/))) translated = match[1] + " TIPOS DISTINTOS";
+    else if ((match = clean.match(/^SPECIMEN \/ (\d+)$/))) translated = "ESPÉCIME / " + match[1];
+    else if ((match = clean.match(/^SPECIMEN #(\d+) \/ (.+)$/))) translated = "ESPÉCIME #" + match[1] + " / " + match[2];
+    else if ((match = clean.match(/^SLOT (\d+)$/))) translated = "ESPAÇO " + match[1];
+    else if ((match = clean.match(/^STAGE (\d+)$/))) translated = "ESTÁGIO " + match[1];
+    else if ((match = clean.match(/^LEVEL (\d+)$/))) translated = "NÍVEL " + match[1];
+    else if ((match = clean.match(/^USE (.+)$/))) translated = "USAR " + match[1];
+    else if ((match = clean.match(/^HOLD (.+)$/))) translated = "SEGURAR " + match[1];
+    else if ((match = clean.match(/^HAPPINESS (\d+)\+$/))) translated = "FELICIDADE " + match[1] + "+";
+    else if ((match = clean.match(/^No index matches for “(.+)”\.$/))) translated = "Nenhum resultado no índice para “" + match[1] + "”.";
+    else if ((match = clean.match(/^(.+) is already in Team Lab\.$/))) translated = match[1] + " já está no Lab de Time.";
+    else if ((match = clean.match(/^(.+) added to Team Lab\.$/))) translated = match[1] + " foi adicionado ao Lab de Time.";
+    else if ((match = clean.match(/^(.+) removed from comparison\.$/))) translated = match[1] + " foi removido da comparação.";
+    else if ((match = clean.match(/^(.+) added to comparison\.$/))) translated = match[1] + " foi adicionado à comparação.";
+    else if ((match = clean.match(/^(\d+) attacking types can be nullified by at least one member\.$/))) translated = match[1] + " tipos de ataque podem ser anulados por pelo menos um membro.";
+    else if ((match = clean.match(/^The team carries (\d+) distinct native types\.$/))) translated = "O time possui " + match[1] + " tipos nativos distintos.";
+    else if ((match = clean.match(/^Native STAB pressure reaches (\d+)\/(\d+) defending types super-effectively\.$/))) translated = "A pressão STAB nativa atinge " + match[1] + "/" + match[2] + " tipos defensores de forma super efetiva.";
+    else if ((match = clean.match(/^(\d+)\/(\d+) members are weak to ([a-z-]+)\.$/))) translated = match[1] + "/" + match[2] + " membros são fracos contra " + typeLabel(match[3]) + ".";
+    else if ((match = clean.match(/^(\d+) members share ([a-z-]+)\.$/))) translated = match[1] + " membros compartilham o tipo " + typeLabel(match[2]) + ".";
+    else if ((match = clean.match(/^(\d+) defending types are not hit super-effectively by the team's native types\.$/))) translated = match[1] + " tipos defensores não são atingidos de forma super efetiva pelos tipos nativos do time.";
+    else if ((match = clean.match(/^Open (.+)$/))) translated = "Abrir " + match[1];
+    else if ((match = clean.match(/^Add (.+) to Team Lab$/))) translated = "Adicionar " + match[1] + " ao Lab de Time";
+    else if ((match = clean.match(/^Compare (.+)$/))) translated = "Comparar " + match[1];
+  }
+
+  if (!translated) {
+    if (clean === "Team Lab is full. Remove a member first.") translated = "O Lab de Time está cheio. Remova um membro primeiro.";
+    else if (clean === "Compare holds up to three Pokémon.") translated = "A comparação aceita até três Pokémon.";
+  }
+
+  return translated ? raw.replace(clean, translated) : raw;
+}
+
+function translateRendered(root = document.body) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (!sourceText.has(node)) sourceText.set(node, node.nodeValue);
+    node.nodeValue = state.locale === "pt-BR"
+      ? translateBaseText(sourceText.get(node))
+      : sourceText.get(node);
+  }
+
+  root.querySelectorAll("[placeholder], [title], [aria-label]").forEach((element) => {
+    if (!sourceAttributes.has(element)) {
+      sourceAttributes.set(element, {
+        placeholder: element.getAttribute("placeholder"),
+        title: element.getAttribute("title"),
+        ariaLabel: element.getAttribute("aria-label")
+      });
+    }
+    const original = sourceAttributes.get(element);
+    for (const [attribute, source] of [
+      ["placeholder", original.placeholder],
+      ["title", original.title],
+      ["aria-label", original.ariaLabel]
+    ]) {
+      if (source == null) continue;
+      element.setAttribute(attribute, state.locale === "pt-BR" ? translateBaseText(source) : source);
+    }
+  });
+
+  document.documentElement.lang = state.locale;
+  const current = document.querySelector("#language-current");
+  const next = document.querySelector("#language-next");
+  if (current) current.textContent = state.locale === "pt-BR" ? "PT-BR" : "EN";
+  if (next) next.textContent = state.locale === "pt-BR" ? "EN" : "PT-BR";
+  document.title = state.locale === "pt-BR"
+    ? "POKÉGRID — Sistema de Pesquisa de Campo"
+    : "POKÉGRID — Field Research System";
+}
+
 const state = {
   catalog: [],
   catalogOffset: 0,
@@ -19,8 +279,7 @@ const state = {
   featured: null,
   team: readLocal("pokegrid:team", []),
   compare: readLocal("pokegrid:compare", []),
-  searchTimer: null
-};
+  searchTimer: null,\n  locale: readLocale()\n};
 
 const TYPE_COLORS = {
   normal: "#8f8c80", fire: "#e7442e", water: "#2c71e8", electric: "#e4b92e",
@@ -517,11 +776,18 @@ async function route() {
     else {
       app.innerHTML = `<div class="page"><section class="compare-empty"><div><span class="eyebrow">404 / INDEX MISS</span><strong>Unknown coordinate.</strong><p><a href="#/">Return to field index →</a></p></div></section></div>`;
     }
-    app.focus({ preventScroll: true });
+    translateRendered(document.body);\n    app.focus({ preventScroll: true });
   } catch (error) {
     renderError(error);
   }
 }
+
+document.querySelector("#language-toggle")?.addEventListener("click", () => {
+  state.locale = state.locale === "en" ? "pt-BR" : "en";
+  localStorage.setItem(LANGUAGE_KEY, state.locale);
+  translateRendered(document.body);
+  route();
+});
 
 document.querySelector("#search-trigger")?.addEventListener("click", openSearch);
 searchInput.addEventListener("input", () => {
@@ -538,5 +804,11 @@ window.addEventListener("keydown", (event) => {
 });
 window.addEventListener("hashchange", route);
 
+const localeObserver = new MutationObserver(() => {
+  if (state.locale === "pt-BR") translateRendered(document.body);
+});
+localeObserver.observe(document.body, { childList: true, subtree: true });
+
+translateRendered(document.body);
 updateCounters();
 route();
