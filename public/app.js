@@ -54,6 +54,7 @@ const PT_BR = {
   "DATA LINK / ERROR": "CONEXÃO DE DADOS / ERRO",
   "Field signal lost.": "Sinal de campo perdido.",
   "Something went wrong.": "Algo deu errado.",
+  "No field note available for this specimen.": "Nenhuma nota de campo disponível para este espécime.",
   "Retry": "Tentar novamente",
   "← Return to index": "← Voltar ao índice",
   "Height": "Altura",
