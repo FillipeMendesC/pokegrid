@@ -1332,7 +1332,7 @@ async function renderAbout() {
         <div class="system-panel">
           <span class="section-kicker">RUNTIME</span>
           <div class="system-readout">
-            <div><span>VERSION</span><strong id="system-version">1.3.0</strong></div>
+            <div><span>VERSION</span><strong id="system-version">1.3.1</strong></div>
             <div><span>MODE</span><strong>${desktop ? "DESKTOP" : "BROWSER"}</strong></div>
             <div><span>SOUND</span><strong>${state.soundEnabled ? "ENABLED" : "MUTED"}</strong></div>
             <div><span>DATA</span><strong>POKÉAPI</strong></div>
