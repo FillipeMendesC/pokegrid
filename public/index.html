@@ -28,16 +28,31 @@
       <a href="#/compare" data-nav="compare">Compare <span id="compare-count" class="nav-count">0</span></a>
     </nav>
 
-    <button class="search-trigger" id="search-trigger" type="button" aria-label="Open search">
-      <span>Search index</span><kbd>/</kbd>
-    </button>
+    <div class="top-actions">
+      <button class="language-toggle" id="language-toggle" type="button" aria-label="Change language">
+        <span id="language-current">EN</span><span class="language-divider">/</span><span id="language-next">PT-BR</span>
+      </button>
+      <button class="search-trigger" id="search-trigger" type="button" aria-label="Open search">
+        <span>Search index</span><kbd>/</kbd>
+      </button>
+    </div>
   </header>
 
   <main id="app" tabindex="-1"></main>
 
   <footer class="footer">
-    <span>POKÉGRID / FIELD RESEARCH SYSTEM</span>
-    <span>DATA: POKÉAPI</span>
+    <div class="footer-system">
+      <span>POKÉGRID / FIELD RESEARCH SYSTEM</span>
+      <span>DATA: POKÉAPI</span>
+    </div>
+    <div class="footer-links" aria-label="Matheus Camacho links">
+      <a href="https://github.com/MatheusCamacho" target="_blank" rel="noreferrer">GITHUB ↗</a>
+      <a href="https://www.linkedin.com/in/matheus-boanova-camacho-34193b357/" target="_blank" rel="noreferrer">LINKEDIN ↗</a>
+    </div>
+    <div class="footer-credit">
+      <strong>MATHEUS CAMACHO</strong>
+      <span>CONCEPT, DIRECTION & PROJECT BY MATHEUS CAMACHO · AI USED AS DEVELOPMENT SUPPORT</span>
+    </div>
     <span>FAN PROJECT · NOT AFFILIATED WITH NINTENDO / GAME FREAK</span>
   </footer>
 
