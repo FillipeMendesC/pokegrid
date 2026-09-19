@@ -1089,6 +1089,168 @@ function compareTable(pokemon) {
   </div>`;
 }
 
+
+async function renderFavorites() {
+  app.innerHTML = `
+    <div class="page">
+      <header class="page-title">
+        <div><span class="section-kicker">06 / PERSONAL ARCHIVE</span><h1>FAVORITES.</h1></div>
+        <div class="page-title-side"><span class="eyebrow">${state.favorites.length} SAVED SPECIMENS</span><p>A local field archive for Pokémon you want to return to quickly.</p></div>
+      </header>
+      ${state.favorites.length
+        ? `<div class="specimen-grid favorites-grid">${state.favorites.map(specimenCard).join("")}</div>`
+        : `<section class="compare-empty"><div><span class="eyebrow">ARCHIVE EMPTY</span><strong>No saved specimens yet.</strong><p>Use ☆ on any card or specimen sheet.</p><a class="secondary-button inline-button" href="#/">Return to index</a></div></section>`}
+    </div>`;
+  bindSpecimens();
+}
+
+async function renderGenerations() {
+  setLoading("Reading generation archive");
+  await ensureGenerations();
+  app.innerHTML = `
+    <div class="page">
+      <header class="page-title">
+        <div><span class="section-kicker">07 / HISTORICAL INDEX</span><h1>GENERATIONS.</h1></div>
+        <div class="page-title-side"><span class="eyebrow">${state.generations.length} DATA GROUPS</span><p>Browse the National Pokédex by the generation in which each species was introduced.</p></div>
+      </header>
+      <section class="generation-grid">
+        ${state.generations.map((generation) => `
+          <button class="generation-card" data-generation="${generation.id}" type="button">
+            <span class="generation-number">0${generation.id}</span>
+            <span class="eyebrow">GENERATION ${generation.id}</span>
+            <strong>${generation.count}</strong>
+            <span>species · ${escapeHtml(generation.region ?? "unknown region")}</span>
+          </button>
+        `).join("")}
+      </section>
+    </div>`;
+
+  app.querySelectorAll("[data-generation]").forEach((button) => button.addEventListener("click", () => {
+    playUiSound("open");
+    location.hash = `#/generation/${button.dataset.generation}`;
+  }));
+}
+
+async function renderGeneration(id) {
+  setLoading(`Resolving generation ${id}`);
+  const data = await api(`/api/generation/${encodeURIComponent(id)}?limit=32&offset=0`);
+  app.innerHTML = `
+    <div class="page">
+      <a class="detail-back" href="#/generations">← Return to generations</a>
+      <header class="page-title generation-title">
+        <div><span class="section-kicker">GENERATION / ${String(data.generation.id).padStart(2, "0")}</span><h1>GEN ${data.generation.id}.</h1></div>
+        <div class="page-title-side"><span class="eyebrow">${data.count} SPECIES</span><p>Main region: ${escapeHtml(data.generation.region ?? "unknown")}.</p></div>
+      </header>
+      <div class="specimen-grid" id="generation-grid">${data.items.map(specimenCard).join("")}</div>
+      ${data.nextOffset !== null ? `<button class="load-more" data-generation-more data-offset="${data.nextOffset}" type="button">Load next specimens →</button>` : ""}
+    </div>`;
+
+  state.catalog = data.items;
+  bindSpecimens();
+
+  app.querySelector("[data-generation-more]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.textContent = "Reading next batch…";
+    const next = await api(`/api/generation/${encodeURIComponent(id)}?limit=32&offset=${button.dataset.offset}`);
+    state.catalog.push(...next.items);
+    const grid = app.querySelector("#generation-grid");
+    grid.insertAdjacentHTML("beforeend", next.items.map(specimenCard).join(""));
+    bindSpecimens(grid);
+    if (next.nextOffset === null) button.remove();
+    else {
+      button.dataset.offset = next.nextOffset;
+      button.textContent = "Load next specimens →";
+    }
+  });
+}
+
+async function renderAbout() {
+  const desktop = Boolean(window.pokegrid);
+  app.innerHTML = `
+    <div class="page">
+      <header class="page-title">
+        <div><span class="section-kicker">08 / SYSTEM RECORD</span><h1>ABOUT<br>SYSTEM.</h1></div>
+        <div class="page-title-side"><span class="eyebrow">POKÉGRID / FIELD RESEARCH SYSTEM</span><p>A non-commercial Pokémon data exploration and team-analysis desktop application.</p></div>
+      </header>
+
+      <section class="system-grid">
+        <div class="system-panel">
+          <span class="section-kicker">PROJECT</span>
+          <h2>MATHEUS CAMACHO</h2>
+          <p>Concept, design direction and project by Matheus Camacho. AI was used as a support tool during development.</p>
+          <div class="system-links">
+            <a href="https://github.com/MatheusCamacho" target="_blank" rel="noreferrer">GITHUB ↗</a>
+            <a href="https://www.linkedin.com/in/matheus-boanova-camacho-34193b357/" target="_blank" rel="noreferrer">LINKEDIN ↗</a>
+          </div>
+        </div>
+
+        <div class="system-panel">
+          <span class="section-kicker">RUNTIME</span>
+          <div class="system-readout">
+            <div><span>VERSION</span><strong id="system-version">1.3.0</strong></div>
+            <div><span>MODE</span><strong>${desktop ? "DESKTOP" : "BROWSER"}</strong></div>
+            <div><span>SOUND</span><strong>${state.soundEnabled ? "ENABLED" : "MUTED"}</strong></div>
+            <div><span>DATA</span><strong>POKÉAPI</strong></div>
+          </div>
+          <button class="secondary-button" data-toggle-sound type="button">${state.soundEnabled ? "MUTE INTERFACE SOUND" : "ENABLE INTERFACE SOUND"}</button>
+        </div>
+
+        <div class="system-panel update-panel">
+          <span class="section-kicker">UPDATE CHANNEL</span>
+          <h2>AUTO UPDATE.</h2>
+          <p id="update-status">${desktop ? "Ready to check the GitHub release channel." : "Automatic updates are available in the packaged desktop application."}</p>
+          <div class="detail-actions">
+            <button class="primary-button" data-check-update type="button" ${desktop ? "" : "disabled"}>CHECK FOR UPDATES</button>
+            <a class="secondary-button inline-button" href="https://github.com/MatheusCamacho/pokegrid/releases/latest" target="_blank" rel="noreferrer">LATEST RELEASE ↗</a>
+          </div>
+        </div>
+
+        <div class="system-panel">
+          <span class="section-kicker">LOCAL DATA</span>
+          <div class="system-readout">
+            <div><span>FAVORITES</span><strong>${state.favorites.length}</strong></div>
+            <div><span>SAVED TEAMS</span><strong>${state.savedTeams.length}</strong></div>
+            <div><span>ACTIVE TEAM</span><strong>${state.team.length}/6</strong></div>
+            <div><span>COMPARE</span><strong>${state.compare.length}/3</strong></div>
+          </div>
+        </div>
+      </section>
+    </div>`;
+
+  app.querySelector("[data-toggle-sound]")?.addEventListener("click", () => {
+    state.soundEnabled = !state.soundEnabled;
+    localStorage.setItem("pokegrid:sound", state.soundEnabled ? "on" : "off");
+    if (state.soundEnabled) playUiSound("save");
+    renderAbout().catch(renderError);
+  });
+
+  if (desktop && window.pokegrid?.getSystemInfo) {
+    try {
+      const info = await window.pokegrid.getSystemInfo();
+      const version = app.querySelector("#system-version");
+      if (version && info?.version) version.textContent = info.version;
+    } catch {}
+  }
+
+  if (desktop && window.pokegrid?.onUpdateStatus) {
+    window.pokegrid.onUpdateStatus((status) => {
+      const target = app.querySelector("#update-status");
+      if (target) target.textContent = status.message ?? status.state ?? "Update status changed.";
+    });
+  }
+
+  app.querySelector("[data-check-update]")?.addEventListener("click", async () => {
+    const target = app.querySelector("#update-status");
+    if (target) target.textContent = "Checking release channel…";
+    try {
+      const result = await window.pokegrid?.checkForUpdates?.();
+      if (result?.message && target) target.textContent = result.message;
+    } catch (error) {
+      if (target) target.textContent = error.message;
+    }
+  });
+}
+
 function openSearch() {
   if (!dialog.open) dialog.showModal();
   searchInput.focus();
@@ -1097,7 +1259,7 @@ function openSearch() {
 async function runSearch(value) {
   const q = value.trim();
   if (!q) {
-    searchResults.innerHTML = `<p class="search-hint">Type a name. Results resolve against the full PokéAPI Pokémon index.</p>`;
+    searchResults.innerHTML = `<p class="search-hint">Type a name, number or form. Try “mega charizard”, “gmax” or “149”.</p>`;
     return;
   }
 
@@ -1133,7 +1295,11 @@ async function route() {
   try {
     if (routePath === "/" || routePath === "") await renderExplore();
     else if (routePath === "/team") await renderTeam();
+    else if (routePath === "/favorites") await renderFavorites();
+    else if (routePath === "/generations") await renderGenerations();
+    else if (routePath.startsWith("/generation/")) await renderGeneration(decodeURIComponent(routePath.slice("/generation/".length)));
     else if (routePath === "/compare") await renderCompare();
+    else if (routePath === "/about") await renderAbout();
     else if (routePath.startsWith("/pokemon/")) await renderPokemon(decodeURIComponent(routePath.slice("/pokemon/".length)));
     else {
       app.innerHTML = `<div class="page"><section class="compare-empty"><div><span class="eyebrow">404 / INDEX MISS</span><strong>Unknown coordinate.</strong><p><a href="#/">Return to field index →</a></p></div></section></div>`;
@@ -1157,7 +1323,7 @@ searchInput.addEventListener("input", () => {
   clearTimeout(state.searchTimer);
   state.searchTimer = setTimeout(() => runSearch(searchInput.value), 220);
 });
-dialog.addEventListener("close", () => { searchResults.innerHTML = `<p class="search-hint">Type a name. Results resolve against the full PokéAPI Pokémon index.</p>`; });
+dialog.addEventListener("close", () => { searchResults.innerHTML = `<p class="search-hint">Type a name, number or form. Try “mega charizard”, “gmax” or “149”.</p>`; });
 window.addEventListener("keydown", (event) => {
   if (event.key === "/" && !event.ctrlKey && !event.metaKey && document.activeElement?.tagName !== "INPUT") {
     event.preventDefault();
