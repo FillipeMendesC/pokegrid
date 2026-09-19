@@ -1,23 +1,38 @@
 import path from "node:path";
 import { TTLCache } from "./cache.mjs";
 import { DiskJsonCache } from "./disk-cache.mjs";
+import { TYPES, TYPE_CHART } from "./team-analysis.mjs";
 
 const API = "https://pokeapi.co/api/v2";
 const DEFAULT_TTL_MS = 60 * 60 * 1000;
-const cache = new TTLCache({ ttlMs: DEFAULT_TTL_MS, maxEntries: 1200 });
+const cache = new TTLCache({ ttlMs: DEFAULT_TTL_MS, maxEntries: 1800 });
 const diskCache = new DiskJsonCache({
   directory: process.env.POKEGRID_CACHE_DIR?.trim() || path.resolve(process.cwd(), ".pokegrid-cache"),
   staleMs: 30 * 24 * 60 * 60 * 1000,
-  maxEntries: 1600
+  maxEntries: 2200
 });
 const cacheMetrics = { memoryHits: 0, networkHits: 0, staleFallbacks: 0 };
 
 function cleanText(value = "") {
-  return value.replace(/[\n\f\r]+/g, " ").replace(/\s+/g, " ").trim();
+  return String(value).replace(/[\n\f\r]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function resourceId(url = "") {
+  const match = String(url).match(/\/(\d+)\/?$/);
+  return match ? Number(match[1]) : null;
+}
+
+function normalizeSearchText(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 export function displayName(value = "") {
-  return value
+  return String(value)
     .split("-")
     .map((part) => part ? part[0].toUpperCase() + part.slice(1) : part)
     .join(" ");
@@ -40,9 +55,9 @@ async function fetchJson(url, { ttlMs = DEFAULT_TTL_MS } = {}) {
     const response = await fetch(url, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "Pokegrid-Portfolio/1.1"
+        "User-Agent": "Pokegrid-Portfolio/1.3"
       },
-      signal: AbortSignal.timeout(9000)
+      signal: AbortSignal.timeout(12_000)
     });
 
     if (!response.ok) {
@@ -79,6 +94,7 @@ export function normalizePokemon(pokemon) {
     id: pokemon.id,
     name: pokemon.name,
     displayName: displayName(pokemon.name),
+    speciesName: pokemon.species?.name ?? pokemon.name,
     height: pokemon.height / 10,
     weight: pokemon.weight / 10,
     baseExperience: pokemon.base_experience,
@@ -130,23 +146,47 @@ export async function getPokemon(idOrName) {
 }
 
 export async function getPokemonDetail(idOrName) {
-  const pokemon = await getPokemon(idOrName);
-  const species = await fetchJson(`${API}/pokemon-species/${pokemon.id}`);
+  const key = encodeURIComponent(String(idOrName).toLowerCase().trim());
+  const rawPokemon = await fetchJson(`${API}/pokemon/${key}`);
+  const pokemon = normalizePokemon(rawPokemon);
+
+  // Forms such as Mega Evolutions and Gigantamax have IDs outside the species
+  // index. Always resolve species through pokemon.species instead of pokemon.id.
+  const speciesKey = encodeURIComponent(rawPokemon.species?.name ?? pokemon.speciesName);
+  const species = await fetchJson(`${API}/pokemon-species/${speciesKey}`);
   const evolution = species.evolution_chain?.url ? await fetchJson(species.evolution_chain.url) : null;
 
   const evolutionEntries = evolution ? flattenEvolutionChain(evolution.chain) : [];
   const evolutionWithIds = evolutionEntries.map((entry) => {
-    const match = entry.name === pokemon.name
-      ? pokemon.id
-      : Number(entry.name && species.varieties?.find((v) => v.pokemon?.name === entry.name)?.pokemon?.url?.match(/\/(\d+)\/$/)?.[1]);
+    const variety = species.varieties?.find((candidate) => candidate.pokemon?.name === entry.name);
+    const match = entry.name === pokemon.name ? pokemon.id : resourceId(variety?.pokemon?.url);
     return { ...entry, id: Number.isFinite(match) ? match : null };
   });
 
+  const flavorEn = cleanText(translatedField(species.flavor_text_entries ?? [], "en", "flavor_text") ?? "");
+  const flavorPt = cleanText(translatedField(species.flavor_text_entries ?? [], "pt-br", "flavor_text") ?? flavorEn);
+  const genusEn = translatedField(species.genera ?? [], "en", "genus");
+  const genusPt = translatedField(species.genera ?? [], "pt-br", "genus") ?? genusEn;
+
   return {
     ...pokemon,
+    availableMoves: (rawPokemon.moves ?? [])
+      .map((entry) => entry.move?.name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b)),
+    varieties: (species.varieties ?? []).map((entry) => ({
+      name: entry.pokemon?.name,
+      displayName: displayName(entry.pokemon?.name),
+      isDefault: Boolean(entry.is_default)
+    })).filter((entry) => entry.name),
     species: {
-      genus: translatedField(species.genera ?? [], "en", "genus"),
-      flavor: cleanText(translatedField(species.flavor_text_entries ?? [], "en", "flavor_text") ?? ""),
+      name: species.name,
+      genus: genusEn,
+      flavor: flavorEn,
+      localized: {
+        en: { genus: genusEn, flavor: flavorEn },
+        "pt-BR": { genus: genusPt, flavor: flavorPt }
+      },
       color: species.color?.name ?? null,
       habitat: species.habitat?.name ?? null,
       generation: species.generation?.name ?? null,
@@ -184,8 +224,24 @@ export async function listPokemon({ limit = 24, offset = 0 } = {}) {
   };
 }
 
-export async function searchPokemon(query, { limit = 10 } = {}) {
-  const q = String(query ?? "").toLowerCase().trim();
+function searchScore(name, query) {
+  const candidate = normalizeSearchText(name);
+  if (candidate === query) return 0;
+  if (candidate.startsWith(query)) return 1;
+
+  const queryTokens = query.split(" ").filter(Boolean);
+  const candidateTokens = candidate.split(" ").filter(Boolean);
+  if (queryTokens.length && queryTokens.every((token) => candidateTokens.some((candidateToken) => candidateToken.includes(token)))) {
+    return 2 + Math.max(0, candidateTokens.length - queryTokens.length);
+  }
+
+  if (candidate.includes(query)) return 8;
+  return 99;
+}
+
+export async function searchPokemon(query, { limit = 12 } = {}) {
+  const rawQuery = String(query ?? "").trim();
+  const q = normalizeSearchText(rawQuery);
   if (!q) return [];
 
   if (/^\d+$/.test(q)) {
@@ -199,15 +255,168 @@ export async function searchPokemon(query, { limit = 10 } = {}) {
 
   const index = await fetchJson(`${API}/pokemon?limit=2000&offset=0`, { ttlMs: 6 * 60 * 60 * 1000 });
   const ranked = index.results
-    .map((entry) => ({
-      name: entry.name,
-      score: entry.name === q ? 0 : entry.name.startsWith(q) ? 1 : entry.name.includes(q) ? 2 : 99
-    }))
+    .map((entry) => ({ name: entry.name, score: searchScore(entry.name, q) }))
     .filter((entry) => entry.score < 99)
     .sort((a, b) => a.score - b.score || a.name.length - b.name.length || a.name.localeCompare(b.name))
-    .slice(0, Math.min(Math.max(Number(limit) || 10, 1), 20));
+    .slice(0, Math.min(Math.max(Number(limit) || 12, 1), 30));
 
   return Promise.all(ranked.map((entry) => getPokemon(entry.name)));
+}
+
+export async function listGenerations() {
+  const index = await fetchJson(`${API}/generation?limit=20&offset=0`, { ttlMs: 24 * 60 * 60 * 1000 });
+  const details = await Promise.all(index.results.map((entry) => fetchJson(entry.url, { ttlMs: 24 * 60 * 60 * 1000 })));
+
+  return details
+    .map((generation) => ({
+      id: generation.id,
+      name: generation.name,
+      displayName: `Generation ${generation.id}`,
+      count: generation.pokemon_species?.length ?? 0,
+      region: generation.main_region?.name ?? null
+    }))
+    .sort((a, b) => a.id - b.id);
+}
+
+export async function listGeneration(id, { limit = 32, offset = 0 } = {}) {
+  const generation = await fetchJson(`${API}/generation/${encodeURIComponent(String(id))}`, { ttlMs: 24 * 60 * 60 * 1000 });
+  const all = [...(generation.pokemon_species ?? [])]
+    .map((entry) => ({ name: entry.name, id: resourceId(entry.url) }))
+    .sort((a, b) => (a.id ?? 99999) - (b.id ?? 99999));
+
+  const safeOffset = Math.max(Number(offset) || 0, 0);
+  const safeLimit = Math.min(Math.max(Number(limit) || 32, 1), 60);
+  const slice = all.slice(safeOffset, safeOffset + safeLimit);
+  const items = await Promise.all(slice.map(async (entry) => {
+    try {
+      return await getPokemon(entry.name);
+    } catch {
+      return { id: entry.id, name: entry.name, displayName: displayName(entry.name), image: null, types: [], stats: {}, totalStats: 0 };
+    }
+  }));
+
+  return {
+    generation: {
+      id: generation.id,
+      name: generation.name,
+      region: generation.main_region?.name ?? null
+    },
+    count: all.length,
+    nextOffset: safeOffset + safeLimit < all.length ? safeOffset + safeLimit : null,
+    items
+  };
+}
+
+export async function filterPokemon({ type = "", generation = "", limit = 36, offset = 0 } = {}) {
+  const safeType = String(type).toLowerCase().trim();
+  const safeGeneration = String(generation).toLowerCase().trim();
+  const safeOffset = Math.max(Number(offset) || 0, 0);
+  const safeLimit = Math.min(Math.max(Number(limit) || 36, 1), 60);
+
+  let candidates = null;
+
+  if (safeType) {
+    const typeData = await fetchJson(`${API}/type/${encodeURIComponent(safeType)}`, { ttlMs: 12 * 60 * 60 * 1000 });
+    candidates = (typeData.pokemon ?? []).map((entry) => ({
+      name: entry.pokemon?.name,
+      id: resourceId(entry.pokemon?.url)
+    })).filter((entry) => entry.name);
+  }
+
+  if (safeGeneration) {
+    const generationData = await fetchJson(`${API}/generation/${encodeURIComponent(safeGeneration)}`, { ttlMs: 24 * 60 * 60 * 1000 });
+    const generationSpecies = new Map((generationData.pokemon_species ?? []).map((entry) => [entry.name, resourceId(entry.url)]));
+
+    if (candidates) {
+      candidates = candidates.filter((entry) => generationSpecies.has(entry.name));
+    } else {
+      candidates = [...generationSpecies].map(([name, id]) => ({ name, id }));
+    }
+  }
+
+  if (!candidates) {
+    const index = await fetchJson(`${API}/pokemon?limit=2000&offset=0`, { ttlMs: 6 * 60 * 60 * 1000 });
+    candidates = index.results.map((entry) => ({ name: entry.name, id: resourceId(entry.url) }));
+  }
+
+  candidates.sort((a, b) => (a.id ?? 99999) - (b.id ?? 99999) || a.name.localeCompare(b.name));
+  const slice = candidates.slice(safeOffset, safeOffset + safeLimit);
+  const items = await Promise.all(slice.map(async (entry) => {
+    try {
+      return await getPokemon(entry.name);
+    } catch {
+      return { id: entry.id, name: entry.name, displayName: displayName(entry.name), image: null, types: [], stats: {}, totalStats: 0 };
+    }
+  }));
+
+  return {
+    count: candidates.length,
+    nextOffset: safeOffset + safeLimit < candidates.length ? safeOffset + safeLimit : null,
+    items
+  };
+}
+
+export async function getMove(name) {
+  const move = await fetchJson(`${API}/move/${encodeURIComponent(String(name).toLowerCase().trim())}`, { ttlMs: 24 * 60 * 60 * 1000 });
+  const flavorEn = cleanText(translatedField(move.flavor_text_entries ?? [], "en", "flavor_text") ?? "");
+  const flavorPt = cleanText(translatedField(move.flavor_text_entries ?? [], "pt-br", "flavor_text") ?? flavorEn);
+
+  return {
+    id: move.id,
+    name: move.name,
+    displayName: displayName(move.name),
+    accuracy: move.accuracy,
+    power: move.power,
+    pp: move.pp,
+    priority: move.priority,
+    type: move.type?.name ?? "normal",
+    damageClass: move.damage_class?.name ?? "status",
+    generation: move.generation?.name ?? null,
+    flavor: { en: flavorEn, "pt-BR": flavorPt }
+  };
+}
+
+export async function analyzeSelectedMoves(memberSelections = []) {
+  const members = memberSelections.slice(0, 6);
+  const resolved = [];
+
+  for (const member of members) {
+    const pokemon = await getPokemon(member.name);
+    const moveNames = [...new Set((member.moves ?? []).map((move) => String(move).toLowerCase().trim()).filter(Boolean))].slice(0, 4);
+    const moves = await Promise.all(moveNames.map((move) => getMove(move)));
+    resolved.push({ pokemon, moves });
+  }
+
+  const coverage = Object.fromEntries(TYPES.map((type) => [type, 0]));
+  const moveTypes = new Set();
+  const classes = { physical: 0, special: 0, status: 0 };
+  let stabMoves = 0;
+  let attackingMoves = 0;
+
+  for (const member of resolved) {
+    for (const move of member.moves) {
+      moveTypes.add(move.type);
+      classes[move.damageClass] = (classes[move.damageClass] ?? 0) + 1;
+      if (move.damageClass !== "status") {
+        attackingMoves += 1;
+        if (member.pokemon.types.includes(move.type)) stabMoves += 1;
+        for (const defendingType of TYPES) {
+          if ((TYPE_CHART[move.type]?.[defendingType] ?? 1) > 1) coverage[defendingType] += 1;
+        }
+      }
+    }
+  }
+
+  return {
+    members: resolved,
+    coverage,
+    coveredTypes: TYPES.filter((type) => coverage[type] > 0),
+    gaps: TYPES.filter((type) => coverage[type] === 0),
+    moveTypes: [...moveTypes],
+    classes,
+    attackingMoves,
+    stabMoves
+  };
 }
 
 export function cacheStats() {
