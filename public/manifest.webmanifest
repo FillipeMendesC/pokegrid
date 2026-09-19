@@ -1,0 +1,11 @@
+{
+  "name": "POKÉGRID — Field Research System",
+  "short_name": "POKÉGRID",
+  "start_url": "/#/",
+  "display": "standalone",
+  "background_color": "#efede5",
+  "theme_color": "#efede5",
+  "icons": [
+    { "src": "/mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
