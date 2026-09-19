@@ -719,6 +719,11 @@ async function renderPokemon(name) {
   state.featured = pokemon;
 
   const stats = Object.entries(pokemon.stats ?? {});
+  const localized = pokemon.species?.localized?.[state.locale] ?? pokemon.species?.localized?.en ?? {};
+  const genus = localized.genus ?? pokemon.species.genus ?? "Pokémon";
+  const flavor = localized.flavor ?? pokemon.species.flavor ?? "No field note available for this specimen.";
+  const favorite = isFavorite(pokemon.name);
+
   app.innerHTML = `
     <div class="page detail">
       <a class="detail-back" href="#/">← Return to index</a>
@@ -729,11 +734,12 @@ async function renderPokemon(name) {
         <div class="detail-copy">
           <span class="eyebrow">SPECIMEN #${number(pokemon.id, 4)} / ${escapeHtml(pokemon.species.generation?.replace("generation-", "GEN ") ?? "UNKNOWN GEN")}</span>
           <h1>${escapeHtml(pokemon.displayName)}</h1>
-          <p class="detail-genus">${escapeHtml(pokemon.species.genus ?? "Pokémon")}</p>
+          <p class="detail-genus">${escapeHtml(genus)}</p>
           ${typeTags(pokemon.types)}
-          <p class="detail-flavor">${escapeHtml(pokemon.species.flavor || "No field note available for this specimen.")}</p>
+          <p class="detail-flavor">${escapeHtml(flavor)}</p>
           <div class="detail-actions">
             <button class="primary-button" data-detail-team type="button">+ Add to Team Lab</button>
+            <button class="secondary-button" data-detail-favorite type="button">${favorite ? "★ Saved favorite" : "☆ Add favorite"}</button>
             <button class="secondary-button" data-detail-compare type="button">≠ Toggle comparison</button>
           </div>
         </div>
@@ -750,6 +756,14 @@ async function renderPokemon(name) {
         <div class="data-cell"><span class="data-label">Class</span><span class="data-value">${pokemon.species.mythical ? "Mythical" : pokemon.species.legendary ? "Legendary" : "Standard"}</span></div>
       </section>
 
+      ${pokemon.varieties?.length > 1 ? `
+      <section class="variant-strip">
+        <span class="section-kicker">KNOWN FORMS / VARIANTS</span>
+        <div class="variant-list">
+          ${pokemon.varieties.map((variant) => `<button class="variant-chip ${variant.name === pokemon.name ? "active" : ""}" data-variant="${escapeHtml(variant.name)}" type="button">${escapeHtml(variant.displayName)}${variant.isDefault ? " · BASE" : ""}</button>`).join("")}
+        </div>
+      </section>` : ""}
+
       <section class="detail-lower">
         <div class="detail-section">
           <span class="section-kicker">BATTLE PROFILE</span>
@@ -759,6 +773,11 @@ async function renderPokemon(name) {
           <div class="analysis-block">
             <span class="section-kicker">ABILITIES</span>
             <div class="findings">${pokemon.abilities.map((ability) => `<div class="finding"><span class="finding-code">${ability.hidden ? "HIDDEN ABILITY" : "ABILITY"}</span><p>${escapeHtml(ability.displayName)}</p></div>`).join("")}</div>
+          </div>
+          <div class="analysis-block">
+            <span class="section-kicker">MOVE ARCHIVE</span>
+            <p class="score-note">This specimen has ${pokemon.availableMoves?.length ?? 0} selectable moves in the data archive. Add it to Team Lab to run move coverage analysis.</p>
+            <div class="move-preview">${(pokemon.availableMoves ?? []).slice(0, 18).map((move) => `<span>${escapeHtml(move.replaceAll("-", " "))}</span>`).join("")}</div>
           </div>
         </div>
         <div class="detail-section">
@@ -778,9 +797,18 @@ async function renderPokemon(name) {
     </div>`;
 
   app.querySelector("[data-detail-team]")?.addEventListener("click", () => addToTeam(pokemon));
+  app.querySelector("[data-detail-favorite]")?.addEventListener("click", (event) => {
+    toggleFavorite(pokemon);
+    event.currentTarget.textContent = isFavorite(pokemon.name) ? "★ Saved favorite" : "☆ Add favorite";
+  });
   app.querySelector("[data-detail-compare]")?.addEventListener("click", () => toggleCompare(pokemon));
   app.querySelectorAll("[data-evolution]").forEach((entry) => entry.addEventListener("click", () => {
+    playUiSound("open");
     location.hash = `#/pokemon/${encodeURIComponent(entry.dataset.evolution)}`;
+  }));
+  app.querySelectorAll("[data-variant]").forEach((entry) => entry.addEventListener("click", () => {
+    playUiSound("open");
+    location.hash = `#/pokemon/${encodeURIComponent(entry.dataset.variant)}`;
   }));
 }
 
