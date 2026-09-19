@@ -449,6 +449,24 @@ function toggleCompare(pokemon) {
   updateCounters();
 }
 
+
+function isFavorite(name) {
+  return state.favorites.some((item) => item.name === name);
+}
+
+function toggleFavorite(pokemon) {
+  const index = state.favorites.findIndex((item) => item.name === pokemon.name);
+  if (index >= 0) {
+    state.favorites.splice(index, 1);
+    toast(`${pokemon.displayName} removed from favorites.`, "remove");
+  } else {
+    state.favorites.push(minimalPokemon(pokemon));
+    toast(`${pokemon.displayName} added to favorites.`, "save");
+  }
+  writeLocal("pokegrid:favorites", state.favorites);
+  updateCounters();
+}
+
 function minimalPokemon(pokemon) {
   return {
     id: pokemon.id,
@@ -469,6 +487,7 @@ function specimenCard(pokemon) {
       <div class="specimen-head"><span>SPECIMEN / ${number(pokemon.id)}</span><span>BST ${pokemon.totalStats ?? "—"}</span></div>
       <div class="specimen-actions">
         <button class="icon-action" type="button" title="Add to Team Lab" aria-label="Add ${escapeHtml(pokemon.displayName)} to Team Lab" data-add-team="${escapeHtml(pokemon.name)}">+</button>
+        <button class="icon-action" type="button" title="Toggle favorite" aria-label="Favorite ${escapeHtml(pokemon.displayName)}" data-add-favorite="${escapeHtml(pokemon.name)}">${isFavorite(pokemon.name) ? "★" : "☆"}</button>
         <button class="icon-action" type="button" title="Toggle compare" aria-label="Compare ${escapeHtml(pokemon.displayName)}" data-add-compare="${escapeHtml(pokemon.name)}">≠</button>
       </div>
       <div class="specimen-visual">
@@ -494,6 +513,16 @@ function bindSpecimens(root = app) {
       ?? state.compare.find((item) => item.name === button.dataset.addTeam)
       ?? state.team.find((item) => item.name === button.dataset.addTeam);
     if (pokemon) addToTeam(pokemon);
+  }));
+
+  root.querySelectorAll("[data-add-favorite]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const pokemon = [...state.catalog, state.featured, ...state.team, ...state.compare, ...state.favorites]
+      .find((item) => item?.name === button.dataset.addFavorite);
+    if (pokemon) {
+      toggleFavorite(pokemon);
+      button.textContent = isFavorite(pokemon.name) ? "★" : "☆";
+    }
   }));
   root.querySelectorAll("[data-add-compare]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
