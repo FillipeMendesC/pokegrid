@@ -1,3 +1,8 @@
+publish:
+  provider: github
+  owner: MatheusCamacho
+  repo: pokegrid
+
 appId: dev.matheuscamacho.pokegrid
 productName: POKÉGRID
 copyright: Copyright © 2026 Matheus Boanova Camacho
