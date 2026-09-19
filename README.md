@@ -1,53 +1,124 @@
 # POKÉGRID — Field Research System
 
-## Download
+[![Release](https://img.shields.io/github/v/release/MatheusCamacho/pokegrid?style=flat-square&label=release)](https://github.com/MatheusCamacho/pokegrid/releases/latest)
+[![Desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20Linux-11110f?style=flat-square)](https://github.com/MatheusCamacho/pokegrid/releases/latest)
+[![Electron](https://img.shields.io/badge/Electron-44-11110f?style=flat-square)](https://www.electronjs.org/)
+[![License](https://img.shields.io/badge/license-MIT-11110f?style=flat-square)](LICENSE)
 
-**Windows — no VS Code, Node.js or npm required**
-
-[Download Portable for Windows](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Portable-1.2.0-x64.exe) · [Download Windows Installer](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Setup-1.2.0-x64.exe) · [Download Linux AppImage](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-1.2.0-x86_64.AppImage)
-
-If you downloaded the repository through **Code → Download ZIP**, the Windows Portable build is tracked in `downloads/` with Git LFS. GitHub must have **Include Git LFS objects in archives** enabled for the repository archive to contain the real executable instead of the small LFS pointer. `DOWNLOAD-WINDOWS.url` remains available as a direct-download fallback.
+A desktop Pokémon field-research interface for species exploration, team composition, move coverage and comparison.
 
 **Project by Matheus Camacho. AI was used as a support tool during development.**
 
-POKÉGRID is a desktop Pokémon research interface focused on species exploration, comparison and team composition. It combines a deliberately editorial interface with a small native Node.js service and a deterministic type-analysis engine.
+## Download
 
-The project avoids a frontend framework on purpose. The UI, routing, API boundary, cache and analysis model are built with browser and Node.js platform APIs; Electron provides the distributable desktop shell.
+No VS Code, Node.js or npm is required to use the packaged application.
 
-## Highlights
+| Platform | Build |
+| --- | --- |
+| Windows · Portable | **[Download POKÉGRID Portable](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Portable-1.3.0-x64.exe)** |
+| Windows · Installer | **[Download POKÉGRID Setup](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Setup-1.3.0-x64.exe)** |
+| Linux · AppImage | **[Download POKÉGRID AppImage](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-1.3.0-x86_64.AppImage)** |
 
-- Complete Pokémon index powered by PokéAPI
-- Search by species name or National Pokédex number
-- Individual specimen sheets with stats, abilities, species metadata and evolution data
-- Team Lab for up to six Pokémon
-- Defensive pressure matrix across all 18 types
-- Shared weakness, immunity and native STAB coverage analysis
-- Side-by-side comparison for up to three Pokémon
-- Local persistence for Team Lab and comparison selections
-- Memory cache plus persistent disk cache with stale offline fallback
-- Local API bound to `127.0.0.1` on an ephemeral port in the desktop build
-- Electron renderer with Node integration disabled, context isolation and sandbox enabled
-- Windows installer, Windows portable build and Linux AppImage
-- GitHub Actions validation and release pipelines
+The Windows Portable build is also tracked in `downloads/` with Git LFS. When **Include Git LFS objects in archives** is enabled in the repository settings, **Code → Download ZIP** contains the real executable.
 
-## Desktop use
+## What it does
 
-End users do **not** need VS Code, Node.js or npm. Download a packaged build from the repository Releases page and open it normally.
+POKÉGRID treats Pokémon as a research dataset rather than a traditional card Pokédex.
 
-Windows artifacts:
+- Full searchable Pokémon index, including **Mega, Gigantamax and alternate forms**
+- Natural form search such as `mega charizard`
+- Filters by **type** and **generation**
+- Dedicated **generation archive**
+- Detailed specimen sheets with stats, abilities, forms and evolution data
+- English / **Português (Brasil)** interface
+- Local **Favorites**
+- Team Lab with up to six Pokémon
+- **Saved teams** stored locally
+- Defensive pressure matrix for all 18 types
+- Team composition heuristic
+- **Move Lab** with up to four selected moves per Pokémon
+- Move-based offensive coverage, STAB and physical/special/status distribution
+- Side-by-side Pokémon comparison
+- Persistent API cache with stale offline fallback
+- Optional minimal interface sounds
+- About/System panel with author, runtime and update status
+- GitHub Release update channel for packaged desktop builds
+- Windows installer, Windows Portable and Linux AppImage
 
-```text
-POKEGRID-Setup-1.1.0-x64.exe
-POKEGRID-Portable-1.1.0-x64.exe
+## Design
+
+The interface is intentionally closer to a field archive / technical specimen catalogue than a conventional dashboard.
+
+No component library, Tailwind, React or frontend framework is used. The interface is built with semantic HTML, CSS and modular browser JavaScript.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    UI[Browser UI] --> Local[Local Node HTTP service]
+    Local --> Cache[Memory + disk cache]
+    Local --> API[PokéAPI]
+    UI --> Storage[Local favorites / teams / settings]
+    Desktop[Electron shell] --> Local
+    Desktop --> Updates[GitHub Releases]
 ```
 
-Linux artifact:
+The desktop build starts the API service only on `127.0.0.1` using an ephemeral port. Electron keeps Node integration disabled in the renderer, enables context isolation and sandboxing, and exposes only the small desktop bridge needed for system/update information.
+
+More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Team analysis
+
+The original Team Lab analysis reads:
+
+- shared defensive weaknesses
+- resistances and immunities
+- native type diversity
+- average base stats
+- native STAB pressure
+
+The **Move Lab** adds a second layer. Selected moves are resolved against PokéAPI and the app calculates:
+
+- super-effective move coverage across all 18 defending types
+- uncovered type gaps
+- STAB move count
+- physical / special / status distribution
+
+The composition score is a project heuristic, **not** a competitive ranking.
+
+## Forms and search
+
+POKÉGRID resolves a Pokémon form through the species reference returned by PokéAPI. This is important for forms whose Pokémon IDs do not match species IDs, including Mega Evolutions.
+
+Examples:
 
 ```text
-POKEGRID-1.1.0-x64.AppImage
+mega charizard
+charizard-mega-x
+venusaur mega
+pikachu gmax
+149
 ```
 
-The application needs internet for data that has never been loaded before. Previously cached PokéAPI responses remain available as a stale fallback for up to 30 days when the upstream service or connection is unavailable.
+## Saved data
+
+These features stay on the local machine:
+
+- active Team Lab
+- saved teams
+- selected moves
+- favorites
+- language
+- sound preference
+- persistent PokéAPI cache
+
+No account is required.
+
+## Updates
+
+The installed Windows build uses the GitHub Releases update channel. When a newer release is available, the app can download it and install it when the application closes.
+
+The Portable build checks the latest release and points users to the release channel because Portable is not an auto-updatable Windows target in electron-builder. The NSIS installer is the recommended build if automatic updating is desired.
 
 ## Development
 
@@ -58,58 +129,41 @@ npm install
 npm start
 ```
 
-Open `http://localhost:3000` for the browser version.
+Browser version:
 
-Run the desktop shell during development:
+```text
+http://localhost:3000
+```
+
+Electron development shell:
 
 ```bash
 npm run desktop
 ```
 
-## Validate
+Validation:
 
 ```bash
 npm run check
 npm test
 ```
 
-## Package locally
-
-Windows packaging is intended to run on Windows:
+Package:
 
 ```bash
 npm run dist:win
-```
-
-Linux:
-
-```bash
 npm run dist:linux
 ```
 
-Build output is written to `release/`.
-
-## Automated builds
-
-`.github/workflows/build.yml` validates the project and produces downloadable Windows and Linux build artifacts on pushes and pull requests to `main`.
-
-Pushing a version tag such as:
-
-```bash
-git tag v1.1.0
-git push origin v1.1.0
-```
-
-runs `.github/workflows/release.yml`, builds the desktop applications on their native GitHub runners and creates a GitHub Release containing the installer, portable executable and AppImage.
-
-## Structure
+## Repository structure
 
 ```text
 pokegrid/
 ├── .github/workflows/
 ├── assets/
 ├── desktop/
-│   └── main.mjs
+│   ├── main.mjs
+│   └── preload.mjs
 ├── docs/
 ├── public/
 ├── src/
@@ -119,21 +173,23 @@ pokegrid/
 │   ├── server.mjs
 │   └── team-analysis.mjs
 ├── test/
+├── downloads/
 ├── electron-builder.yml
-├── LICENSE
 └── package.json
 ```
 
-## Architecture
+## Author
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for request flow, desktop isolation, caching strategy and analysis-model notes.
+**Matheus Camacho**
 
-## Analysis model
+[GitHub](https://github.com/MatheusCamacho) · [LinkedIn](https://www.linkedin.com/in/matheus-boanova-camacho-34193b357/)
 
-The Team Lab composition index is a project heuristic, not a competitive Pokémon ranking. It considers native type diversity, shared defensive weaknesses and super-effective STAB coverage. The complete pressure matrix is shown alongside it so the underlying data remains inspectable.
+> Concept, design direction and project by Matheus Camacho. AI was used as a support tool during development.
 
 ## Data and trademarks
 
-Pokémon data is provided by [PokéAPI](https://pokeapi.co/). Pokémon and Pokémon character names are trademarks of Nintendo. This is a non-commercial fan project and is not affiliated with Nintendo, Game Freak or The Pokémon Company.
+Pokémon data is provided by [PokéAPI](https://pokeapi.co/).
 
-The POKÉGRID source code itself is released under the MIT License.
+Pokémon and Pokémon character names are trademarks of Nintendo, Game Freak and The Pokémon Company. POKÉGRID is a non-commercial fan project and is not affiliated with those companies.
+
+The POKÉGRID source code is released under the [MIT License](LICENSE).
