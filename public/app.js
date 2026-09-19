@@ -821,25 +821,139 @@ function teamSlot(pokemon, index) {
   </div>`;
 }
 
+function currentTeamMovePayload() {
+  return state.team.map((pokemon) => ({
+    name: pokemon.name,
+    moves: (state.moveSelections[pokemon.name] ?? []).filter(Boolean).slice(0, 4)
+  }));
+}
+
+function saveActiveTeam(name) {
+  const cleanName = String(name ?? "").trim();
+  if (!cleanName) return toast("Give this team a name first.", "error");
+  if (!state.team.length) return toast("Add at least one Pokémon before saving.", "error");
+
+  const saved = {
+    id: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-") || String(Date.now()),
+    name: cleanName,
+    members: state.team.map(minimalPokemon),
+    moves: Object.fromEntries(state.team.map((pokemon) => [pokemon.name, [...(state.moveSelections[pokemon.name] ?? [])]])),
+    updatedAt: new Date().toISOString()
+  };
+
+  const existing = state.savedTeams.findIndex((team) => team.id === saved.id);
+  if (existing >= 0) state.savedTeams[existing] = saved;
+  else state.savedTeams.unshift(saved);
+  writeLocal("pokegrid:saved-teams", state.savedTeams);
+  toast(`Team “${cleanName}” saved.`, "save");
+}
+
+function loadSavedTeam(id) {
+  const saved = state.savedTeams.find((team) => team.id === id);
+  if (!saved) return;
+  state.team = saved.members.map((member) => ({ ...member }));
+  state.moveSelections = { ...state.moveSelections, ...(saved.moves ?? {}) };
+  state.moveAnalysis = null;
+  writeLocal("pokegrid:team", state.team);
+  localStorage.setItem("pokegrid:move-selections", JSON.stringify(state.moveSelections));
+  updateCounters();
+  toast(`Team “${saved.name}” loaded.`, "open");
+}
+
+function deleteSavedTeam(id) {
+  const saved = state.savedTeams.find((team) => team.id === id);
+  state.savedTeams = state.savedTeams.filter((team) => team.id !== id);
+  writeLocal("pokegrid:saved-teams", state.savedTeams);
+  if (saved) toast(`Team “${saved.name}” deleted.`, "remove");
+}
+
+function moveInputsForPokemon(pokemon, index) {
+  const selected = state.moveSelections[pokemon.name] ?? [];
+  const listId = `moves-${index}`;
+  return `
+    <article class="move-member">
+      <div class="move-member-head">
+        ${pokemon.image ? `<img src="${escapeHtml(pokemon.image)}" alt="" />` : ""}
+        <div><span class="eyebrow">MOVE SET / ${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(pokemon.displayName)}</strong></div>
+      </div>
+      <datalist id="${listId}">
+        ${(pokemon.availableMoves ?? []).map((move) => `<option value="${escapeHtml(move)}">`).join("")}
+      </datalist>
+      <div class="move-input-grid">
+        ${Array.from({ length: 4 }, (_, slot) => `
+          <label><span>MOVE ${slot + 1}</span><input class="move-input" list="${listId}" data-move-pokemon="${escapeHtml(pokemon.name)}" data-move-slot="${slot}" value="${escapeHtml(selected[slot] ?? "")}" placeholder="choose move…" /></label>
+        `).join("")}
+      </div>
+    </article>`;
+}
+
+function moveAnalysisHtml(analysis) {
+  if (!analysis) return `<div class="move-analysis-empty"><span class="eyebrow">NO MOVE ANALYSIS YET</span><p>Select moves above and run the coverage scan.</p></div>`;
+  const coverageRows = Object.entries(analysis.coverage ?? {}).map(([type, count]) =>
+    `<tr><td>${typeTag(type)}</td><td class="${count ? "good" : "danger"}">${count}</td></tr>`
+  ).join("");
+
+  return `
+    <div class="move-analysis-summary">
+      <div class="metric"><span>ATTACKING MOVES</span><strong>${analysis.attackingMoves}</strong></div>
+      <div class="metric"><span>STAB MOVES</span><strong>${analysis.stabMoves}</strong></div>
+      <div class="metric"><span>COVERED TYPES</span><strong>${analysis.coveredTypes.length}/18</strong></div>
+      <div class="metric"><span>PRESSURE GAPS</span><strong>${analysis.gaps.length}</strong></div>
+    </div>
+    <div class="move-analysis-grid">
+      <div>
+        <span class="section-kicker">DAMAGE CLASS</span>
+        <div class="class-bars">
+          <div><span>PHYSICAL</span><strong>${analysis.classes.physical ?? 0}</strong></div>
+          <div><span>SPECIAL</span><strong>${analysis.classes.special ?? 0}</strong></div>
+          <div><span>STATUS</span><strong>${analysis.classes.status ?? 0}</strong></div>
+        </div>
+        <span class="section-kicker">UNANSWERED TYPES</span>
+        <div class="gap-tags">${analysis.gaps.map((type) => typeTag(type)).join("") || "<span>NONE</span>"}</div>
+      </div>
+      <div class="matrix-panel compact">
+        <table class="matrix"><thead><tr><th>Defending type</th><th>Super-effective moves</th></tr></thead><tbody>${coverageRows}</tbody></table>
+      </div>
+    </div>`;
+}
+
 async function renderTeam() {
   setLoading("Running team analysis");
   let analysis = null;
-  let resolved = [];
+  let details = [];
+
   if (state.team.length) {
     const data = await api("/api/team/analyze", { method: "POST", body: JSON.stringify({ pokemon: state.team.map((item) => item.name) }) });
     analysis = data.analysis;
-    resolved = data.pokemon;
-    state.team = resolved.map(minimalPokemon);
+    state.team = data.pokemon.map(minimalPokemon);
     writeLocal("pokegrid:team", state.team);
+    details = await Promise.all(state.team.map((member) => api(`/api/pokemon/${encodeURIComponent(member.name)}`)));
   }
 
   const slots = Array.from({ length: 6 }, (_, index) => teamSlot(state.team[index], index)).join("");
+  const savedOptions = state.savedTeams.map((team) => `<option value="${escapeHtml(team.id)}">${escapeHtml(team.name)} · ${team.members.length}/6</option>`).join("");
+
   app.innerHTML = `
     <div class="page">
       <header class="page-title">
         <div><span class="section-kicker">03 / COMPOSITION ENGINE</span><h1>TEAM<br>LAB.</h1></div>
-        <div class="page-title-side"><span class="eyebrow">MAXIMUM 06 SPECIMENS</span><p>Read a team as a system: shared weaknesses, resistances, immunities, native type coverage and overall stat shape.</p></div>
+        <div class="page-title-side"><span class="eyebrow">MAXIMUM 06 SPECIMENS</span><p>Read a team as a system: shared weaknesses, resistances, immunities, native type coverage and selected move pressure.</p></div>
       </header>
+
+      <section class="team-vault">
+        <div>
+          <span class="section-kicker">TEAM VAULT</span>
+          <p>Save different lineups locally and return to them later.</p>
+        </div>
+        <div class="team-vault-controls">
+          <input id="team-save-name" class="field-input" maxlength="32" placeholder="team name…" />
+          <button class="secondary-button" data-save-team type="button">SAVE CURRENT</button>
+          <select id="saved-team-select" class="field-select"><option value="">Saved teams…</option>${savedOptions}</select>
+          <button class="secondary-button" data-load-team type="button">LOAD</button>
+          <button class="text-button danger-text" data-delete-team type="button">DELETE</button>
+        </div>
+      </section>
+
       <section class="team-slots">${slots}</section>
       ${state.team.length < 6 ? `<button class="load-more" data-open-search type="button">+ Search a Pokémon to add</button>` : ""}
 
@@ -852,7 +966,6 @@ async function renderTeam() {
             <div class="findings">
               ${analysis.warnings.map((item) => `<div class="finding"><span class="finding-code">${escapeHtml(item.code)}</span><p>${escapeHtml(item.text)}</p></div>`).join("")}
               ${analysis.strengths.map((item) => `<div class="finding strength"><span class="finding-code">${escapeHtml(item.code)}</span><p>${escapeHtml(item.text)}</p></div>`).join("")}
-              ${!analysis.warnings.length && !analysis.strengths.length ? `<div class="finding"><p>Add more members to reveal stronger patterns.</p></div>` : ""}
             </div>
           </div>
           <div class="matrix-panel">
@@ -863,20 +976,72 @@ async function renderTeam() {
             </table>
           </div>
         </section>
+
         <section class="analysis-block">
           <header class="section-head"><span class="section-kicker">04 / TEAM SHAPE</span><div><h2>AVERAGE BASE STATS</h2><p>Useful for reading whether the group leans toward speed, bulk or raw offensive pressure.</p></div><span class="eyebrow">${analysis.teamTypes.length} DISTINCT TYPES</span></header>
           <div class="stat-comparison">${analysis.avgStats.map((stat) => `<div class="stat-line"><span>${escapeHtml(STAT_LABELS[stat.name] ?? stat.name)}</span><div class="stat-track"><div class="stat-fill" style="width:${Math.min(100, stat.value / 2)}%"></div></div><strong>${stat.value}</strong></div>`).join("")}</div>
+        </section>
+
+        <section class="move-lab">
+          <header class="section-head"><span class="section-kicker">05 / MOVE COVERAGE</span><div><h2>MOVE LAB</h2><p>Select up to four moves per member. Coverage is recalculated from actual move types, including STAB and damage class distribution.</p></div><button class="primary-button" data-analyze-moves type="button">RUN MOVE SCAN</button></header>
+          <div class="move-member-grid">${details.map(moveInputsForPokemon).join("")}</div>
+          <div class="move-analysis-result">${moveAnalysisHtml(state.moveAnalysis)}</div>
         </section>`
         : `<section class="compare-empty"><div><span class="eyebrow">NO ACTIVE TEAM</span><strong>Build from the index.</strong><p>Use the + control on any specimen.</p></div></section>`}
     </div>`;
 
   app.querySelectorAll("[data-remove-team]").forEach((button) => button.addEventListener("click", () => {
     state.team = state.team.filter((item) => item.name !== button.dataset.removeTeam);
+    state.moveAnalysis = null;
     writeLocal("pokegrid:team", state.team);
     updateCounters();
+    playUiSound("remove");
     renderTeam().catch(renderError);
   }));
+
   app.querySelector("[data-open-search]")?.addEventListener("click", openSearch);
+
+  app.querySelector("[data-save-team]")?.addEventListener("click", () => {
+    saveActiveTeam(app.querySelector("#team-save-name")?.value);
+    renderTeam().catch(renderError);
+  });
+
+  app.querySelector("[data-load-team]")?.addEventListener("click", () => {
+    const id = app.querySelector("#saved-team-select")?.value;
+    if (!id) return toast("Choose a saved team first.", "error");
+    loadSavedTeam(id);
+    renderTeam().catch(renderError);
+  });
+
+  app.querySelector("[data-delete-team]")?.addEventListener("click", () => {
+    const id = app.querySelector("#saved-team-select")?.value;
+    if (!id) return toast("Choose a saved team first.", "error");
+    deleteSavedTeam(id);
+    renderTeam().catch(renderError);
+  });
+
+  app.querySelectorAll("[data-move-pokemon]").forEach((input) => input.addEventListener("change", () => {
+    const pokemon = input.dataset.movePokemon;
+    const slot = Number(input.dataset.moveSlot);
+    const values = [...(state.moveSelections[pokemon] ?? [])];
+    values[slot] = input.value.trim().toLowerCase();
+    state.moveSelections[pokemon] = values;
+    localStorage.setItem("pokegrid:move-selections", JSON.stringify(state.moveSelections));
+    state.moveAnalysis = null;
+  }));
+
+  app.querySelector("[data-analyze-moves]")?.addEventListener("click", async () => {
+    try {
+      const payload = currentTeamMovePayload();
+      if (!payload.some((member) => member.moves.length)) return toast("Select at least one move first.", "error");
+      const result = await api("/api/team/moves", { method: "POST", body: JSON.stringify({ members: payload }) });
+      state.moveAnalysis = result.analysis;
+      playUiSound("save");
+      renderTeam().catch(renderError);
+    } catch (error) {
+      toast(error.message, "error");
+    }
+  });
 }
 
 async function resolveCompare() {
