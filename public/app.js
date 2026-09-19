@@ -156,7 +156,75 @@ const PT_BR = {
   "rare": "raro",
   "level up": "subir de nível",
   "trade": "troca",
-  "use item": "usar item"
+  "use item": "usar item",
+  "Generations": "Gerações",
+  "Favorites": "Favoritos",
+  "System": "Sistema",
+  "FILTER / SIGNAL RANGE": "FILTRO / FAIXA DE SINAL",
+  "Cross-reference the index by type and generation.": "Cruze o índice por tipo e geração.",
+  "CLEAR FILTERS": "LIMPAR FILTROS",
+  "TYPE": "TIPO",
+  "GENERATION": "GERAÇÃO",
+  "All generations": "Todas as gerações",
+  "TEAM VAULT": "COFRE DE TIMES",
+  "Save different lineups locally and return to them later.": "Salve diferentes formações localmente e volte a elas depois.",
+  "SAVE CURRENT": "SALVAR ATUAL",
+  "Saved teams…": "Times salvos…",
+  "LOAD": "CARREGAR",
+  "DELETE": "EXCLUIR",
+  "MOVE LAB": "LAB DE GOLPES",
+  "RUN MOVE SCAN": "ANALISAR GOLPES",
+  "MOVE COVERAGE": "COBERTURA DE GOLPES",
+  "Select up to four moves per member. Coverage is recalculated from actual move types, including STAB and damage class distribution.": "Selecione até quatro golpes por membro. A cobertura é recalculada pelos tipos reais dos golpes, incluindo STAB e distribuição entre físico, especial e status.",
+  "NO MOVE ANALYSIS YET": "SEM ANÁLISE DE GOLPES",
+  "Select moves above and run the coverage scan.": "Selecione os golpes acima e execute a análise de cobertura.",
+  "ATTACKING MOVES": "GOLPES OFENSIVOS",
+  "STAB MOVES": "GOLPES STAB",
+  "COVERED TYPES": "TIPOS COBERTOS",
+  "PRESSURE GAPS": "LACUNAS DE PRESSÃO",
+  "DAMAGE CLASS": "CLASSE DE DANO",
+  "PHYSICAL": "FÍSICO",
+  "SPECIAL": "ESPECIAL",
+  "STATUS": "STATUS",
+  "UNANSWERED TYPES": "TIPOS SEM RESPOSTA",
+  "06 / PERSONAL ARCHIVE": "06 / ARQUIVO PESSOAL",
+  "FAVORITES.": "FAVORITOS.",
+  "SAVED SPECIMENS": "ESPÉCIMES SALVOS",
+  "A local field archive for Pokémon you want to return to quickly.": "Um arquivo local para os Pokémon que você quer encontrar rapidamente.",
+  "ARCHIVE EMPTY": "ARQUIVO VAZIO",
+  "No saved specimens yet.": "Nenhum espécime salvo ainda.",
+  "Use ☆ on any card or specimen sheet.": "Use ☆ em qualquer card ou ficha de espécime.",
+  "07 / HISTORICAL INDEX": "07 / ÍNDICE HISTÓRICO",
+  "GENERATIONS.": "GERAÇÕES.",
+  "DATA GROUPS": "GRUPOS DE DADOS",
+  "Browse the National Pokédex by the generation in which each species was introduced.": "Explore a Pokédex Nacional pela geração em que cada espécie foi introduzida.",
+  "species": "espécies",
+  "Return to generations": "Voltar às gerações",
+  "08 / SYSTEM RECORD": "08 / REGISTRO DO SISTEMA",
+  "ABOUT": "SOBRE",
+  "SYSTEM.": "SISTEMA.",
+  "PROJECT": "PROJETO",
+  "Concept, design direction and project by Matheus Camacho. AI was used as a support tool during development.": "Conceito, direção de design e projeto por Matheus Camacho. IA foi utilizada como ferramenta de suporte durante o desenvolvimento.",
+  "RUNTIME": "EXECUÇÃO",
+  "VERSION": "VERSÃO",
+  "MODE": "MODO",
+  "SOUND": "SOM",
+  "ENABLED": "ATIVADO",
+  "MUTED": "MUDO",
+  "MUTE INTERFACE SOUND": "DESATIVAR SOM DA INTERFACE",
+  "ENABLE INTERFACE SOUND": "ATIVAR SOM DA INTERFACE",
+  "UPDATE CHANNEL": "CANAL DE ATUALIZAÇÃO",
+  "AUTO UPDATE.": "ATUALIZAÇÃO AUTOMÁTICA.",
+  "CHECK FOR UPDATES": "BUSCAR ATUALIZAÇÕES",
+  "LATEST RELEASE ↗": "VERSÃO MAIS RECENTE ↗",
+  "LOCAL DATA": "DADOS LOCAIS",
+  "SAVED TEAMS": "TIMES SALVOS",
+  "ACTIVE TEAM": "TIME ATIVO",
+  "KNOWN FORMS / VARIANTS": "FORMAS / VARIANTES CONHECIDAS",
+  "MOVE ARCHIVE": "ARQUIVO DE GOLPES",
+  "Saved favorite": "Favorito salvo",
+  "Add favorite": "Adicionar favorito",
+  "Toggle favorite": "Alternar favorito"
 };
 
 const TYPE_PT_BR = {
@@ -224,6 +292,14 @@ function translateBaseText(value = "") {
     else if ((match = clean.match(/^Open (.+)$/))) translated = "Abrir " + match[1];
     else if ((match = clean.match(/^Add (.+) to Team Lab$/))) translated = "Adicionar " + match[1] + " ao Lab de Time";
     else if ((match = clean.match(/^Compare (.+)$/))) translated = "Comparar " + match[1];
+    else if ((match = clean.match(/^(\d+) SAVED SPECIMENS$/))) translated = match[1] + " ESPÉCIMES SALVOS";
+    else if ((match = clean.match(/^(\d+) DATA GROUPS$/))) translated = match[1] + " GRUPOS DE DADOS";
+    else if ((match = clean.match(/^Team “(.+)” saved\.$/))) translated = "Time “" + match[1] + "” salvo.";
+    else if ((match = clean.match(/^Team “(.+)” loaded\.$/))) translated = "Time “" + match[1] + "” carregado.";
+    else if ((match = clean.match(/^Team “(.+)” deleted\.$/))) translated = "Time “" + match[1] + "” excluído.";
+    else if ((match = clean.match(/^(.+) added to favorites\.$/))) translated = match[1] + " adicionado aos favoritos.";
+    else if ((match = clean.match(/^(.+) removed from favorites\.$/))) translated = match[1] + " removido dos favoritos.";
+    else if ((match = clean.match(/^Resolving generation (\d+)$/))) translated = "Carregando geração " + match[1];
   }
 
   if (!translated) {
@@ -422,8 +498,10 @@ function setLoading(label = "Reading field data") {
 }
 
 function renderError(error) {
-  app.innerHTML = `<div class="page"><section class="error-state"><span class="eyebrow">DATA LINK / ERROR</span><h2>Field signal lost.</h2><p>${escapeHtml(error.message || "Something went wrong.")}</p><button class="secondary-button" data-retry>Retry</button></section></div>`;
+  playUiSound("error");
+  app.innerHTML = `<div class="page"><section class="error-state"><span class="eyebrow">DATA LINK / ERROR</span><h2>Field signal lost.</h2><p>${escapeHtml(error.message || "Something went wrong.")}</p><div class="detail-actions"><button class="secondary-button" data-retry>Retry</button><a class="secondary-button inline-button" href="#/">Return to index</a></div></section></div>`;
   app.querySelector("[data-retry]")?.addEventListener("click", route);
+  translateRendered(document.body);
 }
 
 function addToTeam(pokemon) {
@@ -1265,7 +1343,7 @@ async function runSearch(value) {
 
   searchResults.innerHTML = `<p class="search-hint">Scanning index…</p>`;
   try {
-    const data = await api(`/api/search?q=${encodeURIComponent(q)}&limit=10`);
+    const data = await api(`/api/search?q=${encodeURIComponent(q)}&limit=18`);
     if (!data.items.length) {
       searchResults.innerHTML = `<p class="search-hint">No index matches for “${escapeHtml(q)}”.</p>`;
       return;
