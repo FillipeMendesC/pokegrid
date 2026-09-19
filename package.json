@@ -9,7 +9,7 @@
     "start": "node src/server.mjs",
     "desktop": "electron .",
     "test": "node --test",
-    "check": "node --check src/server.mjs && node --check src/pokeapi.mjs && node --check src/disk-cache.mjs && node --check src/team-analysis.mjs && node --check desktop/main.mjs && node --check public/app.js",
+    "check": "node --check src/server.mjs && node --check src/pokeapi.mjs && node --check src/disk-cache.mjs && node --check src/team-analysis.mjs && node --check desktop/main.mjs && node --check desktop/preload.cjs && node --check public/app.js",
     "dist:win": "electron-builder --win nsis portable --x64 --publish never",
     "dist:linux": "electron-builder --linux AppImage --x64 --publish never"
   },
