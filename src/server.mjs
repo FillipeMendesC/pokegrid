@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeTeam } from "./team-analysis.mjs";
-import { cacheStats, getPokemon, getPokemonDetail, listPokemon, searchPokemon } from "./pokeapi.mjs";
+import { analyzeSelectedMoves, cacheStats, filterPokemon, getMove, getPokemon, getPokemonDetail, listGeneration, listGenerations, listPokemon, searchPokemon } from "./pokeapi.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, "../public");
@@ -37,9 +37,16 @@ function sendJson(res, status, body, headers = {}) {
 }
 
 function errorResponse(res, error) {
-  const status = Number(error?.status) === 404 ? 404 : 502;
+  const rawStatus = Number(error?.status);
+  const status = [400, 404, 413].includes(rawStatus) ? rawStatus : 502;
+  const messages = {
+    400: "Invalid request.",
+    404: "Pokémon or field data not found.",
+    413: "Payload too large.",
+    502: "Upstream data is temporarily unavailable."
+  };
   sendJson(res, status, {
-    error: status === 404 ? "Pokémon not found." : "Upstream data is temporarily unavailable.",
+    error: messages[status],
     detail: process.env.NODE_ENV === "development" ? String(error?.message ?? error) : undefined
   });
 }
@@ -86,6 +93,51 @@ async function handleApi(req, res, url) {
     }
   }
 
+  if (url.pathname === "/api/generations" && req.method === "GET") {
+    try {
+      return sendJson(res, 200, { items: await listGenerations() }, { "Cache-Control": "public, max-age=3600" });
+    } catch (error) {
+      return errorResponse(res, error);
+    }
+  }
+
+  const generationMatch = url.pathname.match(/^\/api\/generation\/([^/]+)$/);
+  if (generationMatch && req.method === "GET") {
+    try {
+      const result = await listGeneration(decodeURIComponent(generationMatch[1]), {
+        limit: url.searchParams.get("limit"),
+        offset: url.searchParams.get("offset")
+      });
+      return sendJson(res, 200, result, { "Cache-Control": "public, max-age=600, stale-while-revalidate=3600" });
+    } catch (error) {
+      return errorResponse(res, error);
+    }
+  }
+
+  if (url.pathname === "/api/filter" && req.method === "GET") {
+    try {
+      const result = await filterPokemon({
+        type: url.searchParams.get("type"),
+        generation: url.searchParams.get("generation"),
+        limit: url.searchParams.get("limit"),
+        offset: url.searchParams.get("offset")
+      });
+      return sendJson(res, 200, result, { "Cache-Control": "public, max-age=300, stale-while-revalidate=1800" });
+    } catch (error) {
+      return errorResponse(res, error);
+    }
+  }
+
+  const moveMatch = url.pathname.match(/^\/api\/move\/([^/]+)$/);
+  if (moveMatch && req.method === "GET") {
+    try {
+      return sendJson(res, 200, await getMove(decodeURIComponent(moveMatch[1])), { "Cache-Control": "public, max-age=3600" });
+    } catch (error) {
+      return errorResponse(res, error);
+    }
+  }
+
+
   const pokemonMatch = url.pathname.match(/^\/api\/pokemon\/([^/]+)$/);
   if (pokemonMatch && req.method === "GET") {
     try {
@@ -109,6 +161,18 @@ async function handleApi(req, res, url) {
       return errorResponse(res, error);
     }
   }
+
+  if (url.pathname === "/api/team/moves" && req.method === "POST") {
+    try {
+      const body = await readBody(req, 128_000);
+      const members = Array.isArray(body?.members) ? body.members : [];
+      return sendJson(res, 200, { analysis: await analyzeSelectedMoves(members) });
+    } catch (error) {
+      if (error instanceof SyntaxError) return sendJson(res, 400, { error: "Invalid JSON payload." });
+      return errorResponse(res, error);
+    }
+  }
+
 
   return sendJson(res, 404, { error: "API route not found." });
 }
