@@ -6,7 +6,7 @@
 
 [Download Portable for Windows](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Portable-1.2.0-x64.exe) · [Download Windows Installer](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Setup-1.2.0-x64.exe) · [Download Linux AppImage](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-1.2.0-x86_64.AppImage)
 
-If you downloaded the repository through **Code → Download ZIP**, open `DOWNLOAD-WINDOWS.url` to jump straight to the current Windows Portable build.
+If you downloaded the repository through **Code → Download ZIP**, the Windows Portable build is tracked in `downloads/` with Git LFS. GitHub must have **Include Git LFS objects in archives** enabled for the repository archive to contain the real executable instead of the small LFS pointer. `DOWNLOAD-WINDOWS.url` remains available as a direct-download fallback.
 
 **Project by Matheus Camacho. AI was used as a support tool during development.**
 
