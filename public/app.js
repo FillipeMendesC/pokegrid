@@ -780,7 +780,8 @@ async function route() {
     else {
       app.innerHTML = `<div class="page"><section class="compare-empty"><div><span class="eyebrow">404 / INDEX MISS</span><strong>Unknown coordinate.</strong><p><a href="#/">Return to field index →</a></p></div></section></div>`;
     }
-    translateRendered(document.body);\n    app.focus({ preventScroll: true });
+    translateRendered(document.body);
+    app.focus({ preventScroll: true });
   } catch (error) {
     renderError(error);
   }
