@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 1.3.0
+
+- Fixed Mega, Gigantamax and alternate-form detail resolution.
+- Added natural form search such as `mega charizard`.
+- Added type and generation filters to the field index.
+- Added a dedicated Generations archive.
+- Added persistent Favorites.
+- Added saved Team Lab lineups.
+- Added Move Lab with selected-move coverage, STAB and damage-class analysis.
+- Added optional interface sounds.
+- Added About/System page with author links and runtime information.
+- Added GitHub Release update channel and packaged desktop update checks.
+- Added localized species text when PokéAPI provides pt-BR entries.
+- Expanded automated tests for special forms and natural form search.
+- Rebuilt the repository landing page and download flow.
+
 ## 1.2.0
 
 - Added English / Português (Brasil) interface switching with saved preference.
