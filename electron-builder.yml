@@ -1,0 +1,44 @@
+appId: dev.matheuscamacho.pokegrid
+productName: POKÉGRID
+copyright: Copyright © 2026 Matheus Boanova Camacho
+asar: true
+compression: maximum
+directories:
+  output: release
+  buildResources: assets
+files:
+  - desktop/**/*
+  - public/**/*
+  - src/**/*
+  - package.json
+  - '!**/*.test.*'
+  - '!**/.pokegrid-cache/**'
+win:
+  icon: assets/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  artifactName: POKEGRID-Setup-${version}-${arch}.${ext}
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: POKÉGRID
+  uninstallDisplayName: POKÉGRID
+  deleteAppDataOnUninstall: false
+portable:
+  artifactName: POKEGRID-Portable-${version}-${arch}.${ext}
+linux:
+  icon: assets/icon.png
+  category: Utility
+  target:
+    - target: AppImage
+      arch:
+        - x64
+appImage:
+  artifactName: POKEGRID-${version}-${arch}.${ext}
