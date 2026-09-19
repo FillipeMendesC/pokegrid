@@ -192,7 +192,7 @@ function createWindow(origin) {
     } : {}),
     ...(isMac ? { titleBarStyle: "hiddenInset" } : {}),
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs"),
+      preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
