@@ -1,0 +1,93 @@
+name: Publish POKÉGRID v1.3.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v1.3.1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+
+  windows:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run dist:win
+      - name: Verify update metadata
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "release/latest.yml")) { throw "latest.yml was not generated" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            release/POKEGRID-Setup-*.exe
+            release/POKEGRID-Portable-*.exe
+            release/latest.yml
+            release/*.blockmap
+          if-no-files-found: error
+
+  linux:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run dist:linux
+      - name: Verify update metadata
+        run: test -f release/latest-linux.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: |
+            release/POKEGRID-*.AppImage
+            release/latest-linux.yml
+            release/*.blockmap
+          if-no-files-found: error
+
+  publish:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.3.1
+          target_commitish: main
+          name: POKÉGRID v1.3.1
+          prerelease: false
+          draft: false
+          body: |
+            POKÉGRID v1.3.1 fixes interface audio reliability.
+
+            ### Fixed
+            - Web Audio is now unlocked on the first pointer/keyboard interaction
+            - UI sound patterns are clearer and more audible
+            - Added a TEST SOUND button to About/System
+
+            The Windows Setup build keeps automatic update support through GitHub Releases.
+          files: artifacts/*
