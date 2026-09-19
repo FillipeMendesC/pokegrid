@@ -1,0 +1,26 @@
+{
+  "name": "pokegrid-field-research-system",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A Pokémon field research, comparison and team-analysis desktop app.",
+  "scripts": {
+    "dev": "node --watch src/server.mjs",
+    "start": "node src/server.mjs",
+    "desktop": "electron .",
+    "test": "node --test",
+    "check": "node --check src/server.mjs && node --check src/pokeapi.mjs && node --check src/disk-cache.mjs && node --check src/team-analysis.mjs && node --check desktop/main.mjs && node --check public/app.js",
+    "dist:win": "electron-builder --win nsis portable --x64 --publish never",
+    "dist:linux": "electron-builder --linux AppImage --x64 --publish never"
+  },
+  "engines": {
+    "node": ">=20.10"
+  },
+  "author": "Matheus Boanova Camacho",
+  "license": "MIT",
+  "main": "desktop/main.mjs",
+  "devDependencies": {
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3"
+  }
+}
