@@ -1,0 +1,88 @@
+name: Publish POKÉGRID v1.2.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v1.2.0.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+
+  windows:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            release/POKEGRID-Setup-*.exe
+            release/POKEGRID-Portable-*.exe
+          if-no-files-found: error
+
+  linux:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run dist:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: release/POKEGRID-*.AppImage
+          if-no-files-found: error
+
+  publish:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.2.0
+          name: POKÉGRID v1.2.0
+          prerelease: false
+          draft: false
+          body: |
+            POKÉGRID v1.2.0 — bilingual desktop release.
+
+            ### What's new
+            - English / Português (Brasil) interface switching
+            - Language preference saved locally
+            - Matheus Camacho credits inside the application
+            - Direct GitHub and LinkedIn links in the footer
+            - Transparent AI-support disclosure
+            - Easier Windows downloads from the repository front page
+            - Windows Portable, Windows Setup and Linux AppImage builds
+
+            ### Windows
+            Use **POKEGRID-Portable-1.2.0-x64.exe** to run without installing, or **POKEGRID-Setup-1.2.0-x64.exe** for a normal installation.
+
+            No VS Code, Node.js or npm is required for packaged desktop builds.
+          files: artifacts/*
