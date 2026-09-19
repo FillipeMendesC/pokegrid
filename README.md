@@ -1,5 +1,15 @@
 # POKÉGRID — Field Research System
 
+## Download
+
+**Windows — no VS Code, Node.js or npm required**
+
+[Download Portable for Windows](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Portable-1.2.0-x64.exe) · [Download Windows Installer](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Setup-1.2.0-x64.exe) · [Download Linux AppImage](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-1.2.0-x86_64.AppImage)
+
+If you downloaded the repository through **Code → Download ZIP**, open `DOWNLOAD-WINDOWS.url` to jump straight to the current Windows Portable build.
+
+**Project by Matheus Camacho. AI was used as a support tool during development.**
+
 POKÉGRID is a desktop Pokémon research interface focused on species exploration, comparison and team composition. It combines a deliberately editorial interface with a small native Node.js service and a deterministic type-analysis engine.
 
 The project avoids a frontend framework on purpose. The UI, routing, API boundary, cache and analysis model are built with browser and Node.js platform APIs; Electron provides the distributable desktop shell.
