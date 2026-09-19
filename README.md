@@ -15,9 +15,9 @@ No VS Code, Node.js or npm is required to use the packaged application.
 
 | Platform | Build |
 | --- | --- |
-| Windows · Portable | **[Download POKÉGRID Portable](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Portable-1.3.0-x64.exe)** |
-| Windows · Installer | **[Download POKÉGRID Setup](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Setup-1.3.0-x64.exe)** |
-| Linux · AppImage | **[Download POKÉGRID AppImage](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-1.3.0-x86_64.AppImage)** |
+| Windows · Portable | **[Download POKÉGRID Portable](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Portable-1.3.1-x64.exe)** |
+| Windows · Installer | **[Download POKÉGRID Setup](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-Setup-1.3.1-x64.exe)** |
+| Linux · AppImage | **[Download POKÉGRID AppImage](https://github.com/MatheusCamacho/pokegrid/releases/latest/download/POKEGRID-1.3.1-x86_64.AppImage)** |
 
 The Windows Portable build is also tracked in `downloads/` with Git LFS. When **Include Git LFS objects in archives** is enabled in the repository settings, **Code → Download ZIP** contains the real executable.
 
