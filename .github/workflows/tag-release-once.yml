@@ -1,0 +1,32 @@
+name: Create v1.1.0 tag once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tag-release-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag clean parent commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git rev-parse "refs/tags/v1.1.0" >/dev/null 2>&1; then
+            echo "v1.1.0 already exists."
+            exit 0
+          fi
+          CLEAN_SHA="$(git rev-parse HEAD^)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v1.1.0 "$CLEAN_SHA" -m "POKÉGRID v1.1.0"
+          git push origin v1.1.0
