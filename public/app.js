@@ -264,8 +264,10 @@ function translateRendered(root = document.body) {
   document.documentElement.lang = state.locale;
   const current = document.querySelector("#language-current");
   const next = document.querySelector("#language-next");
-  if (current) current.textContent = state.locale === "pt-BR" ? "PT-BR" : "EN";
-  if (next) next.textContent = state.locale === "pt-BR" ? "EN" : "PT-BR";
+  const currentLabel = state.locale === "pt-BR" ? "PT-BR" : "EN";
+  const nextLabel = state.locale === "pt-BR" ? "EN" : "PT-BR";
+  if (current && current.textContent !== currentLabel) current.textContent = currentLabel;
+  if (next && next.textContent !== nextLabel) next.textContent = nextLabel;
   document.title = state.locale === "pt-BR"
     ? "POKÉGRID — Sistema de Pesquisa de Campo"
     : "POKÉGRID — Field Research System";
