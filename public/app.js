@@ -213,6 +213,8 @@ const PT_BR = {
   "MUTED": "MUDO",
   "MUTE INTERFACE SOUND": "DESATIVAR SOM DA INTERFACE",
   "ENABLE INTERFACE SOUND": "ATIVAR SOM DA INTERFACE",
+  "TEST SOUND": "TESTAR SOM",
+  "Audio could not start. Check the system output volume.": "O áudio não pôde iniciar. Verifique o volume de saída do sistema.",
   "UPDATE CHANNEL": "CANAL DE ATUALIZAÇÃO",
   "AUTO UPDATE.": "ATUALIZAÇÃO AUTOMÁTICA.",
   "CHECK FOR UPDATES": "BUSCAR ATUALIZAÇÕES",
@@ -411,29 +413,90 @@ function readJson(key, fallback) {
   }
 }
 
-function playUiSound(kind = "tap") {
-  if (!state.soundEnabled) return;
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    playUiSound.context ??= new AudioContext();
-    const ctx = playUiSound.context;
-    if (ctx.state === "suspended") void ctx.resume();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const now = ctx.currentTime;
-    const frequencies = { tap: 520, open: 690, save: 820, remove: 250, error: 150 };
-    oscillator.type = kind === "error" ? "square" : "sine";
-    oscillator.frequency.setValueAtTime(frequencies[kind] ?? 520, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.035, now + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
-    oscillator.connect(gain);
-    gain.connect(ctx.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.06);
-  } catch {}
+let uiAudioContext = null;
+let uiAudioMaster = null;
+
+const UI_SOUND_PATTERNS = {
+  tap: [
+    { frequency: 520, duration: 0.085, gain: 0.18, type: "square" }
+  ],
+  open: [
+    { frequency: 430, duration: 0.075, gain: 0.14, type: "triangle" },
+    { frequency: 690, delay: 0.055, duration: 0.1, gain: 0.16, type: "triangle" }
+  ],
+  save: [
+    { frequency: 620, duration: 0.08, gain: 0.14, type: "sine" },
+    { frequency: 880, delay: 0.065, duration: 0.12, gain: 0.18, type: "sine" }
+  ],
+  remove: [
+    { frequency: 320, duration: 0.09, gain: 0.15, type: "triangle" },
+    { frequency: 220, delay: 0.06, duration: 0.11, gain: 0.14, type: "triangle" }
+  ],
+  error: [
+    { frequency: 190, duration: 0.14, gain: 0.16, type: "square" },
+    { frequency: 145, delay: 0.085, duration: 0.15, gain: 0.15, type: "square" }
+  ]
+};
+
+async function ensureUiAudio() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return null;
+
+  if (!uiAudioContext || uiAudioContext.state === "closed") {
+    uiAudioContext = new AudioContext({ latencyHint: "interactive" });
+    uiAudioMaster = uiAudioContext.createGain();
+    uiAudioMaster.gain.value = 0.5;
+    uiAudioMaster.connect(uiAudioContext.destination);
+  }
+
+  if (uiAudioContext.state !== "running") {
+    await uiAudioContext.resume();
+  }
+
+  return uiAudioContext.state === "running" ? uiAudioContext : null;
 }
+
+async function playUiSound(kind = "tap") {
+  if (!state.soundEnabled) return false;
+
+  try {
+    const ctx = await ensureUiAudio();
+    if (!ctx || !uiAudioMaster) return false;
+
+    const now = ctx.currentTime + 0.008;
+    const pattern = UI_SOUND_PATTERNS[kind] ?? UI_SOUND_PATTERNS.tap;
+
+    pattern.forEach((note) => {
+      const start = now + (note.delay ?? 0);
+      const end = start + note.duration;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = note.type;
+      oscillator.frequency.setValueAtTime(note.frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(note.gain, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+      oscillator.connect(gain);
+      gain.connect(uiAudioMaster);
+      oscillator.start(start);
+      oscillator.stop(end + 0.01);
+    });
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function unlockUiAudio() {
+  if (!state.soundEnabled) return;
+  void ensureUiAudio();
+}
+
+window.addEventListener("pointerdown", unlockUiAudio, { capture: true, once: true });
+window.addEventListener("keydown", unlockUiAudio, { capture: true, once: true });
 
 function escapeHtml(value = "") {
   return String(value)
@@ -1274,7 +1337,10 @@ async function renderAbout() {
             <div><span>SOUND</span><strong>${state.soundEnabled ? "ENABLED" : "MUTED"}</strong></div>
             <div><span>DATA</span><strong>POKÉAPI</strong></div>
           </div>
-          <button class="secondary-button" data-toggle-sound type="button">${state.soundEnabled ? "MUTE INTERFACE SOUND" : "ENABLE INTERFACE SOUND"}</button>
+          <div class="detail-actions">
+            <button class="secondary-button" data-toggle-sound type="button">${state.soundEnabled ? "MUTE INTERFACE SOUND" : "ENABLE INTERFACE SOUND"}</button>
+            <button class="secondary-button" data-test-sound type="button" ${state.soundEnabled ? "" : "disabled"}>TEST SOUND</button>
+          </div>
         </div>
 
         <div class="system-panel update-panel">
@@ -1299,11 +1365,16 @@ async function renderAbout() {
       </section>
     </div>`;
 
-  app.querySelector("[data-toggle-sound]")?.addEventListener("click", () => {
+  app.querySelector("[data-toggle-sound]")?.addEventListener("click", async () => {
     state.soundEnabled = !state.soundEnabled;
     localStorage.setItem("pokegrid:sound", state.soundEnabled ? "on" : "off");
-    if (state.soundEnabled) playUiSound("save");
+    if (state.soundEnabled) await playUiSound("save");
     renderAbout().catch(renderError);
+  });
+
+  app.querySelector("[data-test-sound]")?.addEventListener("click", async () => {
+    const played = await playUiSound("save");
+    if (!played) toast("Audio could not start. Check the system output volume.", "error");
   });
 
   if (desktop && window.pokegrid?.getSystemInfo) {
