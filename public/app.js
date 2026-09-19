@@ -10,6 +10,7 @@ const searchResults = document.querySelector("#search-results");
 const toastEl = document.querySelector("#toast");
 const teamCount = document.querySelector("#team-count");
 const compareCount = document.querySelector("#compare-count");
+const favoriteCount = document.querySelector("#favorite-count");
 
 const LANGUAGE_KEY = "pokegrid:locale";
 const sourceText = new WeakMap();
@@ -282,6 +283,13 @@ const state = {
   featured: null,
   team: readLocal("pokegrid:team", []),
   compare: readLocal("pokegrid:compare", []),
+  favorites: readLocal("pokegrid:favorites", []),
+  savedTeams: readLocal("pokegrid:saved-teams", []),
+  moveSelections: readJson("pokegrid:move-selections", {}),
+  moveAnalysis: null,
+  filter: { type: "", generation: "", offset: 0, active: false },
+  generations: [],
+  soundEnabled: localStorage.getItem("pokegrid:sound") !== "off",
   searchTimer: null,
   locale: readLocale()
 };
@@ -314,6 +322,38 @@ function readLocal(key, fallback) {
 
 function writeLocal(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function readJson(key, fallback) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key));
+    return parsed && typeof parsed === "object" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function playUiSound(kind = "tap") {
+  if (!state.soundEnabled) return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    playUiSound.context ??= new AudioContext();
+    const ctx = playUiSound.context;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const now = ctx.currentTime;
+    const frequencies = { tap: 520, open: 690, save: 820, remove: 250, error: 150 };
+    oscillator.type = kind === "error" ? "square" : "sine";
+    oscillator.frequency.setValueAtTime(frequencies[kind] ?? 520, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.035, now + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.06);
+  } catch {}
 }
 
 function escapeHtml(value = "") {
@@ -352,7 +392,8 @@ async function api(path, options = {}) {
   return data;
 }
 
-function toast(message) {
+function toast(message, sound = "tap") {
+  playUiSound(sound);
   toastEl.textContent = message;
   toastEl.classList.add("show");
   clearTimeout(toast.timer);
@@ -362,11 +403,17 @@ function toast(message) {
 function updateCounters() {
   teamCount.textContent = state.team.length;
   compareCount.textContent = state.compare.length;
+  if (favoriteCount) favoriteCount.textContent = state.favorites.length;
 }
 
 function syncNav(route) {
   document.querySelectorAll("[data-nav]").forEach((link) => link.classList.remove("active"));
-  const key = route.startsWith("/team") ? "team" : route.startsWith("/compare") ? "compare" : "explore";
+  const key = route.startsWith("/team") ? "team"
+    : route.startsWith("/compare") ? "compare"
+      : route.startsWith("/favorites") ? "favorites"
+        : route.startsWith("/generations") || route.startsWith("/generation/") ? "generations"
+          : route.startsWith("/about") ? "about"
+            : "explore";
   document.querySelector(`[data-nav="${key}"]`)?.classList.add("active");
 }
 
