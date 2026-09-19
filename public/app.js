@@ -353,6 +353,7 @@ function translateRendered(root = document.body) {
 
 const state = {
   catalog: [],
+  pageItems: [],
   catalogOffset: 0,
   catalogCount: null,
   loadingMore: false,
@@ -587,7 +588,7 @@ function bindSpecimens(root = app) {
   });
   root.querySelectorAll("[data-add-team]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
-    const pokemon = [...state.catalog, state.featured].find((item) => item?.name === button.dataset.addTeam)
+    const pokemon = [...state.catalog, ...state.pageItems, state.featured].find((item) => item?.name === button.dataset.addTeam)
       ?? state.compare.find((item) => item.name === button.dataset.addTeam)
       ?? state.team.find((item) => item.name === button.dataset.addTeam);
     if (pokemon) addToTeam(pokemon);
@@ -595,7 +596,7 @@ function bindSpecimens(root = app) {
 
   root.querySelectorAll("[data-add-favorite]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
-    const pokemon = [...state.catalog, state.featured, ...state.team, ...state.compare, ...state.favorites]
+    const pokemon = [...state.catalog, ...state.pageItems, state.featured, ...state.team, ...state.compare, ...state.favorites]
       .find((item) => item?.name === button.dataset.addFavorite);
     if (pokemon) {
       toggleFavorite(pokemon);
@@ -604,7 +605,7 @@ function bindSpecimens(root = app) {
   }));
   root.querySelectorAll("[data-add-compare]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
-    const pokemon = [...state.catalog, state.featured].find((item) => item?.name === button.dataset.addCompare)
+    const pokemon = [...state.catalog, ...state.pageItems, state.featured].find((item) => item?.name === button.dataset.addCompare)
       ?? state.team.find((item) => item.name === button.dataset.addCompare)
       ?? state.compare.find((item) => item.name === button.dataset.addCompare);
     if (pokemon) toggleCompare(pokemon);
@@ -1223,14 +1224,14 @@ async function renderGeneration(id) {
       ${data.nextOffset !== null ? `<button class="load-more" data-generation-more data-offset="${data.nextOffset}" type="button">Load next specimens →</button>` : ""}
     </div>`;
 
-  state.catalog = data.items;
+  state.pageItems = [...data.items];
   bindSpecimens();
 
   app.querySelector("[data-generation-more]")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     button.textContent = "Reading next batch…";
     const next = await api(`/api/generation/${encodeURIComponent(id)}?limit=32&offset=${button.dataset.offset}`);
-    state.catalog.push(...next.items);
+    state.pageItems.push(...next.items);
     const grid = app.querySelector("#generation-grid");
     grid.insertAdjacentHTML("beforeend", next.items.map(specimenCard).join(""));
     bindSpecimens(grid);
