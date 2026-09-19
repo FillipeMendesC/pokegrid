@@ -545,9 +545,61 @@ async function ensureExploreData() {
   }
 }
 
+async function ensureGenerations() {
+  if (state.generations.length) return state.generations;
+  const data = await api("/api/generations");
+  state.generations = data.items ?? [];
+  return state.generations;
+}
+
+async function applyExploreFilter({ reset = true } = {}) {
+  if (reset) state.filter.offset = 0;
+  const params = new URLSearchParams();
+  if (state.filter.type) params.set("type", state.filter.type);
+  if (state.filter.generation) params.set("generation", state.filter.generation);
+  params.set("limit", "36");
+  params.set("offset", String(state.filter.offset));
+
+  const result = await api(`/api/filter?${params.toString()}`);
+  state.catalog = reset ? result.items : [...state.catalog, ...result.items];
+  state.catalogCount = result.count;
+  state.filter.offset = result.nextOffset ?? state.catalog.length;
+  state.filter.active = Boolean(state.filter.type || state.filter.generation);
+  return result;
+}
+
+function filterControls() {
+  const typeOptions = Object.keys(TYPE_COLORS).map((type) =>
+    `<button class="filter-chip ${state.filter.type === type ? "active" : ""}" data-filter-type="${type}" type="button">${escapeHtml(typeLabel(type))}</button>`
+  ).join("");
+
+  const generationOptions = [
+    `<option value="">All generations</option>`,
+    ...state.generations.map((generation) =>
+      `<option value="${generation.id}" ${String(state.filter.generation) === String(generation.id) ? "selected" : ""}>GEN ${generation.id} · ${escapeHtml(generation.region ?? "")}</option>`
+    )
+  ].join("");
+
+  return `
+    <section class="filter-panel">
+      <div class="filter-panel-head">
+        <div><span class="section-kicker">FILTER / SIGNAL RANGE</span><p>Cross-reference the index by type and generation.</p></div>
+        <button class="text-button" data-clear-filters type="button">CLEAR FILTERS</button>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">TYPE</span>
+        <div class="filter-chips">${typeOptions}</div>
+      </div>
+      <div class="filter-row compact">
+        <label class="filter-label" for="generation-filter">GENERATION</label>
+        <select id="generation-filter" class="field-select">${generationOptions}</select>
+      </div>
+    </section>`;
+}
+
 async function renderExplore() {
   setLoading("Opening specimen index");
-  await ensureExploreData();
+  await Promise.all([ensureExploreData(), ensureGenerations()]);
   const featured = state.featured;
 
   app.innerHTML = `
@@ -579,17 +631,38 @@ async function renderExplore() {
       <section id="index">
         <header class="section-head">
           <span class="section-kicker">02 / SPECIMEN INDEX</span>
-          <div><h2>FIELD INDEX</h2><p>Start anywhere. Every entry opens a full specimen sheet; use + to send a Pokémon to Team Lab, or ≠ to stage a comparison.</p></div>
+          <div><h2>FIELD INDEX</h2><p>Start anywhere. Every entry opens a full specimen sheet; use + to send a Pokémon to Team Lab, ☆ to save it, or ≠ to stage a comparison.</p></div>
           <span class="eyebrow">${state.catalogCount ? `${state.catalogCount} API ENTRIES` : "LIVE INDEX"}</span>
         </header>
+        ${filterControls()}
         <div class="specimen-grid" id="specimen-grid">${state.catalog.map(specimenCard).join("")}</div>
         <button class="load-more" id="load-more" type="button">Load next specimens →</button>
       </section>
     </div>`;
 
   bindSpecimens();
-  app.querySelector(".hero-specimen")?.addEventListener("click", () => { location.hash = "#/pokemon/pikachu"; });
+  app.querySelector(".hero-specimen")?.addEventListener("click", () => { playUiSound("open"); location.hash = "#/pokemon/pikachu"; });
   app.querySelector("#load-more")?.addEventListener("click", loadMore);
+
+  app.querySelectorAll("[data-filter-type]").forEach((button) => button.addEventListener("click", async () => {
+    state.filter.type = state.filter.type === button.dataset.filterType ? "" : button.dataset.filterType;
+    await applyExploreFilter();
+    renderExplore().catch(renderError);
+  }));
+
+  app.querySelector("#generation-filter")?.addEventListener("change", async (event) => {
+    state.filter.generation = event.target.value;
+    await applyExploreFilter();
+    renderExplore().catch(renderError);
+  });
+
+  app.querySelector("[data-clear-filters]")?.addEventListener("click", async () => {
+    state.filter = { type: "", generation: "", offset: 0, active: false };
+    state.catalog = [];
+    state.catalogCount = null;
+    await ensureExploreData();
+    renderExplore().catch(renderError);
+  });
 }
 
 async function loadMore() {
@@ -599,16 +672,31 @@ async function loadMore() {
   if (button) button.textContent = "Reading next batch…";
 
   try {
-    const next = await api(`/api/pokemon?limit=24&offset=${state.catalogOffset}`);
+    let next;
+    if (state.filter.active) {
+      const params = new URLSearchParams();
+      if (state.filter.type) params.set("type", state.filter.type);
+      if (state.filter.generation) params.set("generation", state.filter.generation);
+      params.set("limit", "36");
+      params.set("offset", String(state.filter.offset));
+      next = await api(`/api/filter?${params.toString()}`);
+      state.filter.offset = next.nextOffset ?? (state.filter.offset + next.items.length);
+    } else {
+      next = await api(`/api/pokemon?limit=24&offset=${state.catalogOffset}`);
+      state.catalogOffset += next.items.length;
+    }
+
     state.catalog.push(...next.items);
-    state.catalogOffset += next.items.length;
     const grid = app.querySelector("#specimen-grid");
     grid.insertAdjacentHTML("beforeend", next.items.map(specimenCard).join(""));
     bindSpecimens(grid);
-    if (button) button.textContent = "Load next specimens →";
+    if (button) {
+      button.textContent = next.nextOffset === null ? "END OF INDEX" : "Load next specimens →";
+      if (next.nextOffset === null) button.disabled = true;
+    }
   } catch (error) {
     if (button) button.textContent = "Retry loading specimens";
-    toast(error.message);
+    toast(error.message, "error");
   } finally {
     state.loadingMore = false;
   }
