@@ -281,7 +281,9 @@ const state = {
   featured: null,
   team: readLocal("pokegrid:team", []),
   compare: readLocal("pokegrid:compare", []),
-  searchTimer: null,\n  locale: readLocale()\n};
+  searchTimer: null,
+  locale: readLocale()
+};
 
 const TYPE_COLORS = {
   normal: "#8f8c80", fire: "#e7442e", water: "#2c71e8", electric: "#e4b92e",
