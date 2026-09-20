@@ -315,8 +315,10 @@ export async function filterPokemon({ type = "", generation = "", limit = 36, of
 
   let candidates = null;
 
-  if(safeType === "" && safeGeneration === "") {
-    throw new InvalidArgumentError("Pelo menos um filtro deve ser fornecido: type ou generation.");
+  if (safeType === "" && safeGeneration === "") {
+    const error = new Error("At least one filter must be provided: type or generation.");
+    error.status = 400;
+    throw error;
   }
 
   if (safeType && safeType !== "") {
